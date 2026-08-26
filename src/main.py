@@ -2,21 +2,25 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import datetime as dt
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 import requests
 from openpyxl import Workbook
+from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 if TYPE_CHECKING:
-    from openpyxl.workbook.workbook import _WorksheetOrChartsheetLike
+    from openpyxl.worksheet.worksheet import Worksheet
 
 API = "https://api.deezer.com"
 GENRE_COLUMNS = 4
+TOP_N = 10
+PARIS = ZoneInfo("Europe/Paris")
 
 
 def _get_json(url: str, params: dict | None = None) -> dict:
@@ -52,6 +56,9 @@ def _build_genre_cache(album_ids: set[int]) -> dict[int, list[str]]:
 def export_playlist(playlist_id: str, output: str = "playlist.xlsx") -> None:
     """Exporte une playlist Deezer vers un fichier Excel.
 
+    Le classeur contient deux feuilles : "Playlist" (une ligne par piste) et
+    "Statistiques" (indicateurs globaux et classements).
+
     Args:
         playlist_id (str): L'ID de la playlist à exporter.
         output (str, optional):
@@ -61,16 +68,26 @@ def export_playlist(playlist_id: str, output: str = "playlist.xlsx") -> None:
     album_ids = {t["album"]["id"] for t in tracks}
     genre_cache = _build_genre_cache(album_ids)
 
+    wb = Workbook()
+    wb.remove(wb.worksheets[0])  # feuille vide créée par défaut
+
+    _build_playlist_sheet(wb.create_sheet("Playlist"), tracks, genre_cache)
+    _build_stats_sheet(wb.create_sheet("Statistiques"), tracks, genre_cache)
+
+    wb.save(output)
+    print(
+        f"{len(tracks)} pistes exportées vers {output} "
+        f"({len(album_ids)} albums interrogés)"
+    )
+
+
+def _build_playlist_sheet(
+    ws: Worksheet,
+    tracks: list[dict],
+    genre_cache: dict[int, list[str]],
+) -> None:
     header = ["title", "artist", "album", "duration_s", "link"]
     header += [f"genre {i}" for i in range(1, GENRE_COLUMNS + 1)]
-
-    wb = Workbook()
-    if not wb.worksheets:
-        wb.create_sheet()
-    if not wb.active:
-        wb.active = wb.worksheets[0]
-    ws: _WorksheetOrChartsheetLike = wb.active
-    ws.title = "Playlist"
     ws.append(header)
 
     for t in tracks:
@@ -85,26 +102,170 @@ def export_playlist(playlist_id: str, output: str = "playlist.xlsx") -> None:
             *genres,
         ])
 
-    _format_sheet(ws, n_cols=len(header), n_rows=len(tracks))
+    _style_header(ws, row=1, col=1, n_cols=len(header))
+    ws.freeze_panes = "A2"
 
-    wb.save(output)
-    print(
-        f"{len(tracks)} pistes exportées vers {output} "
-        f"({len(album_ids)} albums interrogés)"
+    last_col = get_column_letter(len(header))
+    _add_table(ws, "Playlist", f"A1:{last_col}{len(tracks) + 1}")
+    _autofit(ws, n_cols=len(header))
+
+
+def _build_stats_sheet(
+    ws: Worksheet,
+    tracks: list[dict],
+    genre_cache: dict[int, list[str]],
+) -> None:
+    """Construit la feuille "Statistiques" du classeur.
+
+    Args:
+        ws (Worksheet): La feuille à remplir.
+        tracks (list[dict]): Les pistes de la playlist.
+        genre_cache (dict[int, list[str]]): Les genres indexés par ID d'album.
+    """
+    artists = Counter(t["artist"]["name"] for t in tracks)
+    albums = Counter(t["album"]["title"] for t in tracks)
+    genres: Counter[str] = Counter()
+    for t in tracks:
+        genres.update(set(genre_cache.get(t["album"]["id"], [])) or {"(sans genre)"})
+
+    overview = _overview_rows(tracks, artists, albums, genres)
+    _write_overview(ws, overview)
+
+    row = len(overview) + 5
+    last = max(
+        _write_ranking(ws, 1, row, "Top artistes", "Top_artistes", "artiste", artists),
+        _write_ranking(ws, 5, row, "Top albums", "Top_albums", "album", albums),
+        _write_ranking(ws, 9, row, "Top genres", "Top_genres", "genre", genres),
+    )
+
+    _add_genre_chart(ws, row=row + 1, last_row=last, anchor=f"A{last + 3}")
+    _autofit(ws, n_cols=11)
+
+
+def _overview_rows(
+    tracks: list[dict],
+    artists: Counter[str],
+    albums: Counter[str],
+    genres: Counter[str],
+) -> list[tuple[str, str | int]]:
+    total_s = sum(int(t["duration"]) for t in tracks)
+    longest = max(tracks, key=lambda t: int(t["duration"]), default=None)
+    shortest = min(tracks, key=lambda t: int(t["duration"]), default=None)
+
+    return [
+        ("Pistes", len(tracks)),
+        ("Artistes uniques", len(artists)),
+        ("Albums uniques", len(albums)),
+        ("Genres uniques", len(genres)),
+        ("Durée totale", _format_duration(total_s)),
+        ("Durée moyenne", _format_duration(total_s // len(tracks) if tracks else 0)),
+        ("Piste la plus longue", _describe_track(longest)),
+        ("Piste la plus courte", _describe_track(shortest)),
+        ("Export généré le", dt.now(PARIS).strftime("%d/%m/%Y %H:%M")),
+    ]
+
+
+def _write_overview(ws: Worksheet, rows: list[tuple[str, str | int]]) -> None:
+    ws.cell(row=1, column=1, value="Vue d'ensemble").font = Font(bold=True, size=14)
+    ws.cell(row=3, column=1, value="indicateur")
+    ws.cell(row=3, column=2, value="valeur")
+
+    for i, (label, value) in enumerate(rows, start=4):
+        ws.cell(row=i, column=1, value=label)
+        ws.cell(row=i, column=2, value=value)
+
+    _style_header(ws, row=3, col=1, n_cols=2)
+    _add_table(ws, "Vue_ensemble", f"A3:B{len(rows) + 3}")
+
+
+def _write_ranking(
+    ws: Worksheet,
+    col: int,
+    row: int,
+    title: str,
+    name: str,
+    label: str,
+    counts: Counter[str],
+) -> int:
+    """Écrit un classement (nom, nombre de pistes, part) sous forme de tableau.
+
+    Args:
+        ws (Worksheet): La feuille à remplir.
+        col (int): L'index (1-based) de la première colonne du classement.
+        row (int): L'index (1-based) de la ligne du titre.
+        title (str): Le titre affiché au-dessus du tableau.
+        name (str): Le nom interne du tableau Excel (sans espace).
+        label (str): L'en-tête de la première colonne.
+        counts (Counter[str]): Les occurrences à classer.
+
+    Returns:
+        int: L'index de la dernière ligne écrite.
+    """
+    total = sum(counts.values())
+    top = counts.most_common(TOP_N)
+
+    ws.cell(row=row, column=col, value=title).font = Font(bold=True, size=12)
+    for offset, head in enumerate((label, "pistes", "part")):
+        ws.cell(row=row + 1, column=col + offset, value=head)
+
+    for i, (key, count) in enumerate(top, start=1):
+        ws.cell(row=row + 1 + i, column=col, value=key)
+        ws.cell(row=row + 1 + i, column=col + 1, value=count)
+        cell = ws.cell(row=row + 1 + i, column=col + 2, value=count / total)
+        cell.number_format = "0.0%"
+
+    last_row = row + 1 + len(top)
+    if top:
+        _style_header(ws, row=row + 1, col=col, n_cols=3)
+        first, last = get_column_letter(col), get_column_letter(col + 2)
+        _add_table(ws, name, f"{first}{row + 1}:{last}{last_row}")
+
+    return last_row
+
+
+def _add_genre_chart(ws: Worksheet, row: int, last_row: int, anchor: str) -> None:
+    if last_row <= row:  # pas de genre à représenter
+        return
+
+    chart = BarChart()
+    chart.type = "bar"
+    chart.title = "Genres les plus représentés"
+    chart.y_axis.title = "pistes"
+    chart.legend = None
+    chart.height = 8
+    chart.width = 16
+    chart.add_data(
+        Reference(ws, min_col=10, min_row=row, max_row=last_row),
+        titles_from_data=True,
+    )
+    chart.set_categories(Reference(ws, min_col=9, min_row=row + 1, max_row=last_row))
+    ws.add_chart(chart, anchor)
+
+
+def _describe_track(track: dict | None) -> str:
+    if track is None:
+        return "—"
+    return (
+        f"{track['title']} — {track['artist']['name']} "
+        f"({_format_duration(int(track['duration']))})"
     )
 
 
-def _format_sheet(ws: _WorksheetOrChartsheetLike, n_cols: int, n_rows: int) -> None:
-    last_col = get_column_letter(n_cols)
-    last_row = n_rows + 1  # +1 pour la ligne d'en-tête
+def _format_duration(seconds: int) -> str:
+    hours, rest = divmod(seconds, 3600)
+    minutes, secs = divmod(rest, 60)
+    if hours:
+        return f"{hours} h {minutes:02d} min {secs:02d} s"
+    return f"{minutes} min {secs:02d} s"
 
-    # En-tête en gras + volet figé pour garder l'en-tête visible au défilement
-    for cell in ws[1]:
-        cell.font = Font(bold=True, color="FFFFFF")
-    ws.freeze_panes = "A2"
 
-    # Vrai tableau Excel : filtres, lignes alternées, plage nommée
-    table = Table(displayName="Playlist", ref=f"A1:{last_col}{last_row}")
+def _style_header(ws: Worksheet, row: int, col: int, n_cols: int) -> None:
+    for offset in range(n_cols):
+        ws.cell(row=row, column=col + offset).font = Font(bold=True, color="FFFFFF")
+
+
+def _add_table(ws: Worksheet, name: str, ref: str) -> None:
+    table = Table(displayName=name, ref=ref)
     table.tableStyleInfo = TableStyleInfo(
         name="TableStyleMedium2",
         showRowStripes=True,
@@ -112,7 +273,8 @@ def _format_sheet(ws: _WorksheetOrChartsheetLike, n_cols: int, n_rows: int) -> N
     )
     ws.add_table(table)
 
-    # Largeur des colonnes ajustée au contenu
+
+def _autofit(ws: Worksheet, n_cols: int) -> None:
     for col_idx in range(1, n_cols + 1):
         letter = get_column_letter(col_idx)
         width = max(
@@ -126,5 +288,5 @@ if __name__ == "__main__":
     print("Exportation de la playlist Deezer vers un fichier Excel...")
     export_playlist(
         "10016300382",
-        f"output/playlist_{dt.now(ZoneInfo('Europe/Paris')).date().isoformat()}.xlsx",
+        f"output/playlist_{dt.now(PARIS).date().isoformat()}.xlsx",
     )
