@@ -1,13 +1,19 @@
-import time
+"""Exportation de playlists Deezer vers Excel."""
+
+from __future__ import annotations
+
 from datetime import datetime as dt
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 import requests
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
-from openpyxl.workbook.workbook import _WorksheetOrChartsheetLike
 from openpyxl.worksheet.table import Table, TableStyleInfo
+
+if TYPE_CHECKING:
+    from openpyxl.workbook.workbook import _WorksheetOrChartsheetLike
 
 API = "https://api.deezer.com"
 GENRE_COLUMNS = 4
@@ -39,12 +45,18 @@ def _build_genre_cache(album_ids: set[int]) -> dict[int, list[str]]:
     for album_id in album_ids:
         album = _get_json(f"{API}/album/{album_id}")
         cache[album_id] = [g["name"] for g in album.get("genres", {}).get("data", [])]
-        time.sleep(0.05)  # ménage le rate limit (~50 req/10 s)
 
     return cache
 
 
 def export_playlist(playlist_id: str, output: str = "playlist.xlsx") -> None:
+    """Exporte une playlist Deezer vers un fichier Excel.
+
+    Args:
+        playlist_id (str): L'ID de la playlist à exporter.
+        output (str, optional):
+            Le chemin du fichier de sortie. Defaults to "playlist.xlsx".
+    """
     tracks = _fetch_tracks(playlist_id)
     album_ids = {t["album"]["id"] for t in tracks}
     genre_cache = _build_genre_cache(album_ids)
@@ -82,13 +94,13 @@ def export_playlist(playlist_id: str, output: str = "playlist.xlsx") -> None:
     )
 
 
-def _format_sheet(ws, n_cols: int, n_rows: int) -> None:
+def _format_sheet(ws: _WorksheetOrChartsheetLike, n_cols: int, n_rows: int) -> None:
     last_col = get_column_letter(n_cols)
     last_row = n_rows + 1  # +1 pour la ligne d'en-tête
 
     # En-tête en gras + volet figé pour garder l'en-tête visible au défilement
     for cell in ws[1]:
-        cell.font = Font(bold=True)
+        cell.font = Font(bold=True, color="FFFFFF")
     ws.freeze_panes = "A2"
 
     # Vrai tableau Excel : filtres, lignes alternées, plage nommée
