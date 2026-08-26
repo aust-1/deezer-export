@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import os
 from collections import Counter
 from datetime import datetime as dt
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 import requests
+from dotenv import load_dotenv
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Font
@@ -18,6 +20,7 @@ if TYPE_CHECKING:
     from openpyxl.worksheet.worksheet import Worksheet
 
 API = "https://api.deezer.com"
+ENV_PLAYLIST_ID = "DEEZER_PLAYLIST_ID"
 GENRE_COLUMNS = 4
 TOP_N = 10
 PARIS = ZoneInfo("Europe/Paris")
@@ -284,9 +287,31 @@ def _autofit(ws: Worksheet, n_cols: int) -> None:
         ws.column_dimensions[letter].width = min(width + 2, 60)
 
 
+def _playlist_id_from_env() -> str:
+    """Lit l'ID de la playlist dans le fichier `.env` ou l'environnement.
+
+    Returns:
+        str: L'ID de la playlist à exporter.
+
+    Raises:
+        SystemExit: Si la variable `DEEZER_PLAYLIST_ID` n'est pas renseignée.
+    """
+    load_dotenv()
+    playlist_id = os.getenv(ENV_PLAYLIST_ID, "").strip()
+
+    if not playlist_id:
+        msg = (
+            f"{ENV_PLAYLIST_ID} n'est pas défini : copiez .env.example vers .env "
+            "et renseignez l'ID de la playlist à exporter."
+        )
+        raise SystemExit(msg)
+
+    return playlist_id
+
+
 if __name__ == "__main__":
     print("Exportation de la playlist Deezer vers un fichier Excel...")
     export_playlist(
-        "10016300382",
+        _playlist_id_from_env(),
         f"output/playlist_{dt.now(PARIS).date().isoformat()}.xlsx",
     )

@@ -2,7 +2,12 @@
 name = "deezer-export"
 version = "0.1.0"
 requires-python = ">=3.13.7"
-dependencies = ["openpyxl>=3.1.5", "requests>=2.34.2", "tzdata>=2026.3"]
+dependencies = [
+    "openpyxl>=3.1.5",
+    "python-dotenv>=1.2.3",
+    "requests>=2.34.2",
+    "tzdata>=2026.3",
+]
 
 [dependency-groups]
 dev = [

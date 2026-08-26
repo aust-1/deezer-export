@@ -55,19 +55,34 @@ cd deezer-export
 uv sync
 ```
 
-## Utilisation
+## Configuration
 
-L'ID de playlist et le chemin de sortie sont définis en bas de
-[`src/main.py`](src/main.py) :
+L'ID de la playlist est lu depuis un fichier `.env` (non versionné). Copiez le
+modèle fourni et renseignez votre ID :
 
-```python
-export_playlist(
-    "10016300382",
-    f"output/playlist_{dt.now(PARIS).date().isoformat()}.xlsx",
-)
+```bash
+cp .env.example .env
 ```
 
-Remplacez l'ID par le vôtre, puis lancez :
+```ini
+# .env
+DEEZER_PLAYLIST_ID=908622995
+```
+
+| Variable             | Requise | Description                         |
+| -------------------- | ------- | ----------------------------------- |
+| `DEEZER_PLAYLIST_ID` | oui     | ID de la playlist Deezer à exporter |
+
+La variable peut aussi être fournie directement par l'environnement, ce qui
+prend le pas sur le fichier `.env` :
+
+```bash
+DEEZER_PLAYLIST_ID=908622995 uv run python src/main.py
+```
+
+Si elle est absente, le script s'arrête avec un message explicite.
+
+## Utilisation
 
 ```bash
 mkdir -p output
@@ -78,7 +93,9 @@ uv run python src/main.py
 50 pistes exportées vers output/playlist_2026-08-26.xlsx (48 albums interrogés)
 ```
 
-La fonction peut aussi être appelée depuis votre propre code :
+Le fichier est écrit dans `output/`, daté du jour (fuseau `Europe/Paris`). La
+fonction peut aussi être appelée depuis votre propre code, sans passer par le
+`.env` :
 
 ```python
 from main import export_playlist
