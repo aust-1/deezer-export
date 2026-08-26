@@ -64,16 +64,14 @@ def export_playlist(playlist_id: str, output: str = "playlist.xlsx") -> None:
     for t in tracks:
         genres = genre_cache.get(t["album"]["id"], [])
         genres = (genres + [""] * GENRE_COLUMNS)[:GENRE_COLUMNS]
-        ws.append(
-            [
-                t["title"],
-                t["artist"]["name"],
-                t["album"]["title"],
-                t["duration"],
-                t["link"],
-                *genres,
-            ]
-        )
+        ws.append([
+            t["title"],
+            t["artist"]["name"],
+            t["album"]["title"],
+            t["duration"],
+            t["link"],
+            *genres,
+        ])
 
     _format_sheet(ws, n_cols=len(header), n_rows=len(tracks))
 

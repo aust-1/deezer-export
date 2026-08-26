@@ -2,8 +2,168 @@
 name = "deezer-export"
 version = "0.1.0"
 requires-python = ">=3.13.7"
-dependencies = [
-    "openpyxl>=3.1.5",
-    "requests>=2.32.5",
-    "tzdata>=2026.3",
+dependencies = ["openpyxl>=3.1.5", "requests>=2.34.2", "tzdata>=2026.3"]
+
+[dependency-groups]
+dev = [
+    "isort>=7.0.0",
+    "mypy>=1.19.1",
+    "pydoclint>=0.8.3",
+    "pylint>=4.0.4",
+    "pyright>=1.1.407",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.14.10",
 ]
+
+[tool.isort]
+profile = "black"
+skip_glob = ["**/.venv/**"]
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+plugins = "mypy-type-checker"
+pretty = true
+python_version = "3.13"
+show_error_codes = true
+strict = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unused_ignores = false
+
+[tool.pydoclint]
+allow-init-docstring = true
+baseline = "pydoclint-baseline.txt"
+check-style-mismatch = true
+exclude = '\.venv'
+generate-baseline = true
+show-filenames-in-every-violation-message = true
+skip-checking-short-docstrings = false
+style = 'google'
+
+[tool.pylint.main]
+disable = [
+    "C0114", # missing-module-docstring -> Best management with ruff
+    "C0301", # line-too-long -> Best management with ruff
+    "C0415", # import-outside-toplevel -> Best management with ruff
+    "E0401", # import-error -> False positive
+    "E1101", # no-member -> False positive
+    "I0011", # locally-disabled
+    "I0020", # suppressed-message
+    "R0801", # duplicate-code
+    "R0902", # too-many-instance-attributes
+    "R0903", # too-few-public-methods
+    "R0913", # too-many-arguments
+    "R0914", # too-many-locals
+    "R0915", # too-many-statements
+    "R0917", # too-many-positional-arguments
+    "W0212", # protected-access -> Best management with ruff
+    "W0511", # fixme
+    "W0611", # unused-import -> Best management with pyright and ruff
+    "W0613", # unused-argument -> Best management with ruff
+    "W0718", # broad-exception-caught -> Best management with ruff
+    "W1113", # keyword-arg-before-vararg -> Best management with ruff
+]
+enable = "all"
+exit-zero = true
+ignore = [".venv", "docs"]
+init-hook = 'import sys; sys.path[:0] = ["common", "robot1/rasp"]'
+msg-template = "{line}:{column}: {msg_id}: {msg} ({symbol})"
+output-format = "text"
+
+[tool.pylint.logging]
+logging-format-style = "new"
+logging-modules = ["loggerplusplus"]
+
+[tool.pylint.miscellaneous]
+notes = [
+    "BUG",
+    "FIX",
+    "FIXIT",
+    "FIXME",
+    "HACK",
+    "QUESTION",
+    "TODO",
+    "UNUSED",
+    "[ ]",
+    "[x]",
+]
+
+[tool.pyright]
+exclude = ["**/.venv", "**/__pycache__", "**/node_modules"]
+include = ["src"]
+reportCallInDefaultInitializer = "error"
+reportConstantRedefinition = "warning"
+reportDeprecated = "warning"
+reportImplicitOverride = "information"
+reportImportCycles = "warning"
+reportInconsistentConstructor = "information"
+reportMatchNotExhaustive = "warning"
+reportMissingImports = "warning"
+reportMissingModuleSource = "information"
+reportMissingParameterType = "information"
+reportMissingTypeArgument = "information"
+reportPossiblyUnboundVariable = "none"
+reportPrivateImportUsage = "none"
+reportPrivateUsage = "information"
+reportPropertyTypeMismatch = "warning"
+reportUninitializedInstanceVariable = "information"
+reportUnknownVariableType = "information"
+reportUnnecessaryCast = "information"
+reportUnnecessaryComparison = "information"
+reportUnnecessaryContains = "information"
+reportUnnecessaryIsInstance = "information"
+reportUnnecessaryTypeIgnoreComment = "information"
+reportUnreachable = "warning"
+reportUntypedBaseClass = "error"
+reportUntypedClassDecorator = "error"
+reportUntypedNamedTuple = "error"
+reportUnusedClass = "information"
+reportUnusedExpression = "information"
+reportUnusedFunction = "information"
+reportUnusedImport = "information"
+typeCheckingMode = "standard"
+
+[tool.ruff]
+exclude = ["**/.venv/**", "**/docs/**"]
+fix = true
+indent-width = 4
+line-length = 88
+output-format = "grouped"
+preview = true
+show-fixes = true
+target-version = "py313"
+unsafe-fixes = false
+
+[tool.ruff.format]
+docstring-code-format = true
+quote-style = "double"
+
+[tool.ruff.lint]
+exclude = ["**/.venv/**", "**/docs/**"]
+ignore = [
+    "async-busy-wait",
+    "abstract-base-class-without-abstract-method",
+    "COM812",
+    "missing-copyright-notice",
+    "shebang-missing-executable-file",
+    "line-contains-todo",
+    "line-contains-hack",
+    "logging-f-string",
+    "too-many-positional-arguments",
+    "too-many-arguments",
+    "hardcoded-bind-all-interfaces",
+    "suspicious-subprocess-import",
+    "invalid-todo-tag",
+    "missing-todo-author",
+    "missing-todo-link",
+    "error-instead-of-exception",
+]
+select = ["ALL"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
