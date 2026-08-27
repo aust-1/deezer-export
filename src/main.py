@@ -12,6 +12,8 @@ import requests
 from dotenv import load_dotenv
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
+from openpyxl.chart.data_source import AxDataSource, StrRef
+from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
@@ -19,6 +21,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 if TYPE_CHECKING:
     from openpyxl.worksheet.worksheet import Worksheet
 
+ACCENT_COLOR = "4472C4"  # bleu du style de tableau TableStyleMedium2
 API = "https://api.deezer.com"
 ENV_PLAYLIST_ID = "DEEZER_PLAYLIST_ID"
 GENRE_COLUMNS = 4
@@ -135,13 +138,18 @@ def _build_stats_sheet(
     _write_overview(ws, overview)
 
     row = len(overview) + 5
-    last = max(
-        _write_ranking(ws, 1, row, "Top artistes", "Top_artistes", "artiste", artists),
-        _write_ranking(ws, 5, row, "Top albums", "Top_albums", "album", albums),
-        _write_ranking(ws, 9, row, "Top genres", "Top_genres", "genre", genres),
+    artists_last = _write_ranking(
+        ws, 1, row, "Top artistes", "Top_artistes", "artiste", artists
+    )
+    albums_last = _write_ranking(
+        ws, 5, row, "Top albums", "Top_albums", "album", albums
+    )
+    genres_last = _write_ranking(
+        ws, 9, row, "Top genres", "Top_genres", "genre", genres
     )
 
-    _add_genre_chart(ws, row=row + 1, last_row=last, anchor=f"A{last + 3}")
+    last = max(artists_last, albums_last, genres_last)
+    _add_genre_chart(ws, row=row + 1, last_row=genres_last, anchor=f"A{last + 3}")
     _autofit(ws, n_cols=11)
 
 
@@ -233,15 +241,42 @@ def _add_genre_chart(ws: Worksheet, row: int, last_row: int, anchor: str) -> Non
     chart = BarChart()
     chart.type = "bar"
     chart.title = "Genres les plus représentés"
-    chart.y_axis.title = "pistes"
+    chart.title.overlay = False  # sinon le titre se superpose aux barres
     chart.legend = None
+    chart.varyColors = False
     chart.height = 8
     chart.width = 16
     chart.add_data(
         Reference(ws, min_col=10, min_row=row, max_row=last_row),
         titles_from_data=True,
     )
-    chart.set_categories(Reference(ws, min_col=9, min_row=row + 1, max_row=last_row))
+    # set_categories() écrirait une référence numérique : Excel n'afficherait
+    # alors aucun nom de genre sur l'axe des catégories.
+    cats = Reference(ws, min_col=9, min_row=row + 1, max_row=last_row)
+    chart.series[0].cat = AxDataSource(strRef=StrRef(f=str(cats)))
+    chart.series[0].graphicalProperties.solidFill = ACCENT_COLOR
+
+    # openpyxl masque les axes par défaut : sans cela, Excel n'affiche ni le nom
+    # des genres (axe des catégories) ni l'échelle (axe des valeurs).
+    chart.x_axis.delete = False
+    chart.y_axis.delete = False
+    chart.x_axis.title = None
+    chart.y_axis.title = None
+    chart.x_axis.majorTickMark = "out"
+    chart.y_axis.majorGridlines = None
+
+    # Le genre le plus représenté en haut, avec les valeurs affichées.
+    chart.x_axis.scaling.orientation = "maxMin"
+    chart.y_axis.crosses = "max"
+    chart.dLbls = DataLabelList(
+        showVal=True,
+        showSerName=False,
+        showCatName=False,
+        showLegendKey=False,
+        showPercent=False,
+        showBubbleSize=False,
+    )
+
     ws.add_chart(chart, anchor)
 
 
