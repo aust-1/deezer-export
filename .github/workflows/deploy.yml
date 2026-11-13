@@ -1,0 +1,48 @@
+name: Déploiement
+# Déploie sur le VPS quand la CI de `main` est verte.
+#
+# La clé SSH de ce dépôt est bridée sur le serveur à une seule commande, « sudo opt-deploy
+# deezer-export » : le workflow n'envoie rien d'autre. Mécanisme et mise en place :
+# docs/ci-deploy.md du dépôt opt (aust-1/vps-strasbourg-opt).
+#
+# Désactivé tant que la variable de dépôt DEPLOY_ENABLED ne vaut pas « true » (Settings →
+# Secrets and variables → Actions → Variables) : à activer une fois l'app ajoutée au VPS
+# (scripts/app-add.sh) et ses secrets créés.
+# Secrets requis :
+#   VPS_HOST         IP ou nom du VPS
+#   VPS_SSH_KEY      clé privée dédiée à ce dépôt (deploy-install.sh --key deezer-export)
+#   VPS_KNOWN_HOSTS  clé d'hôte du serveur, épinglée (jamais de confiance à la première clé vue)
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      vars.DEPLOY_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Déployer (clé bridée à « opt-deploy deezer-export » sur le VPS)
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          test -n "$VPS_KNOWN_HOSTS" || { echo "Secret VPS_KNOWN_HOSTS manquant" >&2; exit 1; }
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_deploy
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_deploy ~/.ssh/known_hosts
+          ssh -T -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" "gh-deploy@$VPS_HOST"

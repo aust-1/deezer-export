@@ -1,0 +1,60 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Qualité et tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - name: Dépendances (figées par uv.lock)
+        run: uv sync --locked
+      - name: Format
+        run: uv run ruff format --check src tests
+      - name: Lint
+        run: uv run ruff check --no-fix src tests
+      - name: Docstrings
+        run: uv run pydoclint src
+      - name: Typage
+        run: |
+          uv run mypy src tests
+          uv run pyright
+      - name: Tests, sans réseau (Deezer est simulé)
+        run: uv run pytest
+
+  image:
+    name: Image Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Construire l'image
+        run: docker build -t deezer-export:ci .
+      - name: Démarrer le conteneur comme sur le VPS et attendre le healthcheck
+        run: |
+          docker run -d --name app --read-only --tmpfs /tmp --cap-drop ALL \
+            --security-opt no-new-privileges:true -p 127.0.0.1:8000:8000 deezer-export:ci
+          for _ in $(seq 30); do
+            status="$(docker inspect -f '{{.State.Health.Status}}' app)"
+            [ "$status" = healthy ] && break
+            sleep 2
+          done
+          docker inspect -f '{{.State.Health.Status}}' app | grep -qx healthy
+          curl -fsS http://127.0.0.1:8000/ | grep -q 'Deezer'
+          curl -fsS -o /dev/null http://127.0.0.1:8000/static/css/site.css
+      - name: Journaux du conteneur
+        if: failure()
+        run: docker logs app

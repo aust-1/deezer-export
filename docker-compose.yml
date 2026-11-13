@@ -1,0 +1,54 @@
+# Déploiement sur le VPS : `docker compose up -d --build` (le fichier .env est lu automatiquement).
+#
+# Le VPS héberge un reverse proxy Caddy partagé (ports 80/443) : ce fichier ne publie aucun
+# port. Le routage est déclaré dans ./Caddyfile (voir docs/add-a-service.md du dépôt opt,
+# aust-1/vps-strasbourg-opt), qui cible l'alias réseau ci-dessous sur le réseau externe partagé.
+name: deezer-export # DOIT correspondre au dossier apps/deezer-export du dépôt opt
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      PUBLIC_URL: ${PUBLIC_URL:-https://deezer.eliott-roussille.fr}
+      DEEZER_APP_ID: ${DEEZER_APP_ID:-}
+      DEEZER_APP_SECRET: ${DEEZER_APP_SECRET:-}
+      ARL_LOGIN: ${ARL_LOGIN:-true}
+      SESSION_TTL_MINUTES: ${SESSION_TTL_MINUTES:-60}
+      EXPORT_WORKERS: ${EXPORT_WORKERS:-2}
+      MAX_PENDING_JOBS: ${MAX_PENDING_JOBS:-8}
+      ANALYTICS_SCRIPT: ${ANALYTICS_SCRIPT:-}
+      ANALYTICS_SITE_ID: ${ANALYTICS_SITE_ID:-}
+      # Seul le proxy Caddy joint ce conteneur : on lui fait confiance pour X-Forwarded-*.
+      FORWARDED_ALLOW_IPS: '*'
+    # Sessions et exports vivent en mémoire : système de fichiers en lecture seule.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    networks:
+      proxy:
+        aliases:
+          - deezer-export-web # cible du reverse_proxy dans ./Caddyfile, unique sur le VPS
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging: *logging
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-proxy}
