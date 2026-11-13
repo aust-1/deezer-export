@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}{{ export.playlist.title }}{% endblock %}
+{% block main %}
+{% set p = export.playlist %}
+<section class="hero hero--compact dots marks" aria-labelledby="titre">
+  <div class="container hero__inner">
+    <p class="crumbs t-label">
+      <a href="/">exports</a><span>/</span><span>playlist {{ p.id }}</span>
+      <span>· {{ export.generated_at.strftime('%d/%m/%Y %H:%M') }} · généré</span>
+    </p>
+    <h1 id="titre" class="t-display">{{ p.title }}<span class="dot">.</span></h1>
+    <p class="cote cote--accent">
+      <span>{% if p.owner %}par {{ p.owner }} · {% endif %}{{ 'publique' if p.public else 'privée' }}</span>
+    </p>
+  </div>
+</section>
+
+<section class="container" aria-label="Chiffres clés">
+  <div class="figures">
+    <div class="figure">
+      <p class="figure__n">{{ stats.track_count }}</p>
+      <p class="cote"><span>pistes · {{ stats.total_duration|duration }}</span></p>
+    </div>
+    <div class="figure">
+      <p class="figure__n">{{ stats.artist_count }}</p>
+      <p class="cote"><span>artistes · {{ stats.album_count }} albums</span></p>
+    </div>
+  </div>
+  <div class="actions section">
+    <a class="cta" href="/exports/{{ job.id }}/classeur.xlsx" download>Télécharger le classeur .xlsx →</a>
+    <a class="link-mono" href="{{ p.link }}">Ouvrir sur Deezer</a>
+    <a class="link-mono" href="/#exporter">Nouvelle analyse</a>
+  </div>
+</section>
+
+<section class="section container" aria-labelledby="titre-genres">
+  <div class="section__head">
+    <h2 id="titre-genres" class="t-section">Genres</h2>
+    <p class="t-label">{{ '%02d' % stats.genre_count }} uniques</p>
+  </div>
+  <div class="split">
+    <div class="split__main">
+      {% if stats.top_genres %}
+      <ul class="bars" aria-label="Genres les plus représentés">
+        {% set top = stats.top_genres[0].count %}
+        {% for row in stats.top_genres %}
+        <li class="bar">
+          <span>{{ row.name }}</span>
+          <span class="bar__track" aria-hidden="true"><span class="bar__fill" style="--w: {{ (100 * row.count / top)|round(1) }}%"></span></span>
+          <span class="bar__value">{{ row.count }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="t-lead">Aucun genre : la playlist est vide.</p>
+      {% endif %}
+    </div>
+    <dl class="split__side block block--blue overview" aria-label="Vue d'ensemble">
+      <div><dt class="t-label">Durée totale</dt><dd>{{ stats.total_duration|duration }}</dd></div>
+      <div><dt class="t-label">Durée moyenne</dt><dd>{{ stats.average_duration|duration }}</dd></div>
+      <div><dt class="t-label">Plus longue</dt><dd>{{ stats.longest|track }}</dd></div>
+      <div><dt class="t-label">Plus courte</dt><dd>{{ stats.shortest|track }}</dd></div>
+      <div><dt class="t-label">Albums interrogés</dt><dd>{{ export.albums_queried }}</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="section container" aria-labelledby="titre-classements">
+  <div class="section__head">
+    <h2 id="titre-classements" class="t-section">Classements</h2>
+    <p class="t-label">top {{ top_n }}</p>
+  </div>
+  <div class="rankings">
+    {% for title, label, rows in [('Top artistes', 'artiste', stats.top_artists), ('Top albums', 'album', stats.top_albums), ('Top genres', 'genre', stats.top_genres)] %}
+    <div class="table-wrap">
+      <h3 class="t-title block__title">{{ title }}</h3>
+      <table class="table">
+        <thead><tr><th scope="col">{{ label }}</th><th scope="col" class="num">pistes</th><th scope="col" class="num">part</th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+          <tr><td>{{ row.name }}</td><td class="num">{{ row.count }}</td><td class="num muted">{{ row.share|percent }}</td></tr>
+          {% else %}
+          <tr><td colspan="3" class="muted">—</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="section container" aria-labelledby="titre-pistes">
+  <div class="section__head">
+    <h2 id="titre-pistes" class="t-section">Pistes</h2>
+    <p class="t-label">{{ '%02d' % stats.track_count }} entrées</p>
+  </div>
+  <div class="table-wrap">
+    <table class="table table--tracks">
+      <thead>
+        <tr>
+          <th scope="col" class="num">#</th>
+          <th scope="col">titre</th>
+          <th scope="col">artiste</th>
+          <th scope="col">album</th>
+          <th scope="col" class="num">durée</th>
+          <th scope="col">genres</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in export.tracks %}
+        <tr>
+          <td class="num muted">{{ loop.index }}</td>
+          <td><a href="{{ t.link }}">{{ t.title }}</a></td>
+          <td>{{ t.artist }}</td>
+          <td>{{ t.album }}</td>
+          <td class="num">{{ t.duration|clock }}</td>
+          <td class="muted">{{ export.genres_of(t)|join(', ') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

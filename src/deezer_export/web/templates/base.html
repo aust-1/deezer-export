@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="referrer" content="same-origin" />
+    <title>{% block title %}Deezer Export{% endblock %} · Eliott Roussille</title>
+    <meta
+      name="description"
+      content="J'exporte une playlist Deezer, publique ou privée, vers un classeur Excel avec ses statistiques."
+    />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', path='favicon.svg') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='css/site.css') }}?v={{ version }}" />
+    <!-- Thème mémorisé appliqué avant le premier rendu (fichier statique : compatible CSP) -->
+    <script src="{{ url_for('static', path='js/theme-init.js') }}?v={{ version }}"></script>
+    <script src="{{ url_for('static', path='js/app.js') }}?v={{ version }}" defer></script>
+    {% if settings.analytics_script and settings.analytics_site_id %}
+    <script src="{{ settings.analytics_script }}" data-site-id="{{ settings.analytics_site_id }}" defer></script>
+    {% endif %}
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    <a class="visually-hidden" href="#contenu">Aller au contenu</a>
+    <header class="nav">
+      <div class="container nav__inner">
+        <a class="monogram" href="/" aria-label="Deezer Export, accueil">ER<span>_</span></a>
+        <nav class="nav__links t-ui" aria-label="Navigation principale">
+          <a href="/#exporter">Exporter</a>
+          <a class="nav__hide-sm" href="/#mes-playlists">Mes playlists</a>
+          <a class="nav__hide-sm" href="https://github.com/aust-1/deezer-export">Code</a>
+          <button type="button" class="link-mono js-only" data-theme-toggle>Sombre</button>
+          {% if auth %}
+          <form method="post" action="/deconnexion">
+            <input type="hidden" name="csrf" value="{{ csrf }}" />
+            <button type="submit" class="cta">Déconnexion</button>
+          </form>
+          {% else %}
+          <a class="cta" href="/#connexion">Connexion</a>
+          {% endif %}
+        </nav>
+      </div>
+    </header>
+
+    <main id="contenu">{% block main %}{% endblock %}</main>
+
+    <footer class="footer">
+      <div class="container footer__inner">
+        <p>Eliott Roussille <a class="handle" href="https://github.com/aust-1">@aust-1</a></p>
+        <p>
+          Projet personnel, non affilié à Deezer ·
+          <a href="https://github.com/aust-1/deezer-export">code source</a> · v{{ version }}
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
