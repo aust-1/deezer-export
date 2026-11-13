@@ -1,25 +1,56 @@
 [project]
 name = "deezer-export"
-version = "0.1.0"
+version = "0.2.0"
+description = "Exporte une playlist Deezer, publique ou privée, vers un classeur Excel : en ligne de commande ou sur le web."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Eliott A. Roussille" }]
 requires-python = ">=3.13.7"
 dependencies = [
+    "fastapi>=0.121.0",
+    "jinja2>=3.1.6",
     "openpyxl>=3.1.5",
     "python-dotenv>=1.2.3",
+    "python-multipart>=0.0.20",
     "requests>=2.34.2",
     "tzdata>=2026.3",
+    "uvicorn>=0.38.0",
 ]
+
+[project.scripts]
+deezer-export = "deezer_export.cli:main"
+deezer-export-web = "deezer_export.web.server:main"
+
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/deezer_export"]
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.16.0",
     "isort>=7.0.0",
     "mypy>=1.19.1",
     "pydoclint>=0.8.3",
     "pylint>=4.0.4",
-    "pyright>=1.1.407",
+    "pyright[nodejs]>=1.1.407",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
+    "responses>=0.25.8",
     "ruff>=0.14.10",
+    "types-requests>=2.32.4",
 ]
+
+[tool.pytest.ini_options]
+addopts = "--cov=deezer_export --cov-report=term-missing"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["deezer_export"]
 
 [tool.isort]
 profile = "black"
@@ -31,7 +62,6 @@ disallow_incomplete_defs = true
 disallow_untyped_defs = true
 ignore_missing_imports = true
 no_implicit_optional = true
-plugins = "mypy-type-checker"
 pretty = true
 python_version = "3.13"
 show_error_codes = true
@@ -42,10 +72,10 @@ warn_unused_ignores = false
 
 [tool.pydoclint]
 allow-init-docstring = true
-baseline = "pydoclint-baseline.txt"
+# Dataclasses : les champs sont typés et commentés là où ils sont déclarés.
+check-class-attributes = false
 check-style-mismatch = true
 exclude = '\.venv'
-generate-baseline = true
 show-filenames-in-every-violation-message = true
 skip-checking-short-docstrings = false
 style = 'google'
@@ -72,17 +102,14 @@ disable = [
     "W0613", # unused-argument -> Best management with ruff
     "W0718", # broad-exception-caught -> Best management with ruff
     "W1113", # keyword-arg-before-vararg -> Best management with ruff
+    "W2301", # unnecessary-ellipsis -> pyright l'exige dans les méthodes de Protocol
 ]
 enable = "all"
 exit-zero = true
 ignore = [".venv", "docs"]
-init-hook = 'import sys; sys.path[:0] = ["common", "robot1/rasp"]'
+source-roots = ["src"]
 msg-template = "{line}:{column}: {msg_id}: {msg} ({symbol})"
 output-format = "text"
-
-[tool.pylint.logging]
-logging-format-style = "new"
-logging-modules = ["loggerplusplus"]
 
 [tool.pylint.miscellaneous]
 notes = [
@@ -100,7 +127,7 @@ notes = [
 
 [tool.pyright]
 exclude = ["**/.venv", "**/__pycache__", "**/node_modules"]
-include = ["src"]
+include = ["src", "tests"]
 reportCallInDefaultInitializer = "error"
 reportConstantRedefinition = "warning"
 reportDeprecated = "warning"
@@ -172,3 +199,20 @@ select = ["ALL"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "ARG",     # fixtures et faux objets : arguments imposés par l'interface
+    "D",       # tests : le nom suffit
+    "DOC",
+    "E501",    # réponses Deezer simulées sur une ligne
+    "INP001",  # tests/ n'est pas un paquet
+    "PLC2701", # accès aux noms privés des modules testés
+    "PLR2004", # valeurs attendues en clair
+    "S101",    # assert
+    "S105",
+    "S106",    # faux secrets de test
+    "SLF001",
+    "PLR6301", # faux objets : méthodes sans self
+    "TC001",
+]
