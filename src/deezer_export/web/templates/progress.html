@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Analyse en cours{% endblock %}
+{% block head %}
+<!-- Sans JS : la page se recharge d'elle-même toutes les 3 secondes. -->
+<noscript><meta http-equiv="refresh" content="3" /></noscript>
+{% endblock %}
+{% block main %}
+<section class="hero hero--compact dots marks" aria-labelledby="titre">
+  <div class="container hero__inner">
+    <p class="crumbs t-label"><a href="/">exports</a><span>/</span><span>playlist {{ job.playlist_id }}</span></p>
+    <h1 id="titre" class="t-display">Analyse<br />en cours<span class="cursor" aria-hidden="true"></span></h1>
+  </div>
+</section>
+
+<section class="container">
+  <div class="progress" data-progress-url="/exports/{{ job.id }}/etat" aria-live="polite">
+    <p class="progress__n" data-percent>{{ job.percent }} %</p>
+    <div class="progress__track" role="presentation">
+      <span class="progress__fill" data-fill style="--w: {{ job.percent }}%"></span>
+    </div>
+    <p class="cote"><span data-step>{{ job.step_label }}</span></p>
+    <p class="t-ui" data-count>{% if job.total %}{{ job.done }} / {{ job.total }} albums{% endif %}</p>
+    <p class="hint">
+      Deezer limite le rythme des requêtes : compte environ une minute pour 500 albums distincts.
+      Tu peux laisser cet onglet ouvert, je recharge la page dès que c'est prêt.
+    </p>
+  </div>
+</section>
+{% endblock %}
