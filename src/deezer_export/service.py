@@ -46,11 +46,17 @@ class PlaylistSource(Protocol):
         """
         ...
 
-    def playlist_tracks(self, playlist_id: int) -> list[Track]:
+    def playlist_tracks(
+        self,
+        playlist_id: int,
+        progress: Callable[[int], None] | None = None,
+    ) -> list[Track]:
         """Lit les pistes d'une playlist.
 
         Args:
             playlist_id (int): L'ID de la playlist.
+            progress (Callable[[int], None] | None): Rappel appelé après chaque page
+                lue, avec le nombre de pistes lues jusque-là.
 
         Returns:
             list[Track]: Ses pistes.
@@ -210,7 +216,12 @@ def fetch_playlist(
     notify("playlist", 0, 0)
     info = source.playlist(playlist_id)
     notify("tracks", 0, info.nb_tracks)
-    tracks = tuple(source.playlist_tracks(playlist_id))
+
+    def tracks_read(done: int) -> None:
+        # nb_tracks peut sous-estimer le total (pistes ajoutées entre-temps).
+        notify("tracks", done, max(info.nb_tracks, done))
+
+    tracks = tuple(source.playlist_tracks(playlist_id, tracks_read))
 
     album_ids = list(dict.fromkeys(t.album_id for t in tracks if t.album_id))
     genres = _album_genres(album_ids, genres_client, cache, notify)

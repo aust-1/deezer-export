@@ -31,6 +31,13 @@ STEP_LABELS = {
     "tracks": "lecture des pistes",
     "albums": "genres des albums",
 }
+# Ce que l'on compte à chaque étape (« 300 / 2 140 pistes »).
+STEP_UNITS = {"tracks": "pistes", "albums": "albums"}
+# Part de chaque étape dans le pourcentage global. Les pistes se lisent par pages
+# (100 ou 1 000 par requête) ; les genres demandent une requête par album, soit
+# l'essentiel du temps.
+STEP_SPANS = {"playlist": (0, 2), "tracks": (2, 20), "albums": (20, 100)}
+_THIN_SPACE = "\u202f"  # séparateur de milliers : espace fine insécable
 
 
 class TooManyJobsError(RuntimeError):
@@ -70,9 +77,26 @@ class Job:
         """
         if self.status == "done":
             return 100
-        if self.step == "albums" and self.total:
-            return 10 + int(90 * self.done / self.total)
-        return 5 if self.step in {"playlist", "tracks"} else 0
+        start, end = STEP_SPANS.get(self.step, (0, 0))
+        if not self.total:
+            return start
+        return start + (end - start) * min(self.done, self.total) // self.total
+
+    @property
+    def count_label(self) -> str:
+        """Le compteur de l'étape en cours, par exemple « 300 / 2 140 pistes ».
+
+        Returns:
+            str: Le compteur, ou une chaîne vide si l'étape ne compte rien.
+        """
+        unit = STEP_UNITS.get(self.step)
+        if unit is None or not self.total:
+            return ""
+        return f"{_thousands(self.done)} / {_thousands(self.total)} {unit}"
+
+
+def _thousands(n: int) -> str:
+    return f"{n:,}".replace(",", _THIN_SPACE)
 
 
 class JobManager:

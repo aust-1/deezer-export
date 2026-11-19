@@ -381,7 +381,7 @@ def export_state(request: Request, job_id: str) -> JSONResponse:
         job_id (str): L'identifiant de l'export.
 
     Returns:
-        JSONResponse: Statut, étape et avancement.
+        JSONResponse: Statut, étape, compteur et avancement.
     """
     job = _owned_job(request, job_id)
     return JSONResponse({
@@ -389,6 +389,7 @@ def export_state(request: Request, job_id: str) -> JSONResponse:
         "step": job.step_label,
         "done": job.done,
         "total": job.total,
+        "count": job.count_label,
         "percent": job.percent,
     })
 

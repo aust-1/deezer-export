@@ -29,7 +29,7 @@ from deezer_export.deezer.public import BLOCKED_MESSAGE, HTTP_BLOCKED
 from deezer_export.models import PlaylistInfo, Track, User
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
 GATEWAY = "https://www.deezer.com/ajax/gw-light.php"
 PAGE_SIZE = 1000
@@ -118,16 +118,22 @@ class GatewayClient:
         )
         return playlist_from_gateway(page.get("DATA") or {})
 
-    def playlist_tracks(self, playlist_id: int) -> list[Track]:
+    def playlist_tracks(
+        self,
+        playlist_id: int,
+        progress: Callable[[int], None] | None = None,
+    ) -> list[Track]:
         """Lit toutes les pistes d'une playlist, par pages de 1 000.
 
         Args:
             playlist_id (int): L'ID de la playlist.
+            progress (Callable[[int], None] | None): Rappel appelé après chaque page,
+                avec le nombre de pistes lues jusque-là.
 
         Returns:
             list[Track]: Les pistes, dans l'ordre de la playlist.
         """
-        return [track_from_gateway(s) for s in self._songs(playlist_id)]
+        return [track_from_gateway(s) for s in self._songs(playlist_id, progress)]
 
     def my_playlists(self) -> list[PlaylistInfo]:
         """Liste les playlists du compte, privées comprises.
@@ -168,7 +174,11 @@ class GatewayClient:
                 msg = "Deezer refuse la session : reconnecte-toi."
                 raise AuthenticationError(msg) from exc
 
-    def _songs(self, playlist_id: int) -> Iterator[dict[str, Any]]:
+    def _songs(
+        self,
+        playlist_id: int,
+        progress: Callable[[int], None] | None = None,
+    ) -> Iterator[dict[str, Any]]:
         start = 0
         while True:
             page = self.call(
@@ -176,8 +186,10 @@ class GatewayClient:
                 {"PLAYLIST_ID": str(playlist_id), "start": start, "nb": PAGE_SIZE},
             )
             items = page.get("data") or []
-            yield from items
             start += len(items)
+            if progress is not None:
+                progress(start)
+            yield from items
             if not items or start >= int(page.get("total") or 0):
                 return
 
