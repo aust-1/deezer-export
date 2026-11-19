@@ -9,7 +9,7 @@ from deezer_export.deezer.gateway import GATEWAY
 from deezer_export.deezer.oauth import CONNECT
 from deezer_export.deezer.public import API
 from deezer_export.models import User
-from deezer_export.service import GENRE_CACHE
+from deezer_export.service import EXPORT_CACHE, GENRE_CACHE
 from deezer_export.web import server
 from deezer_export.web.backend import DeezerBackend
 from deezer_export.web.config import Settings
@@ -18,6 +18,12 @@ from deezer_export.web.sessions import DeezerAuth
 SETTINGS = Settings(
     public_url="https://exemple.fr", deezer_app_id="123", deezer_app_secret="s3cret"
 )
+
+
+def gw_method(name: str) -> responses.matchers.Matcher:  # type: ignore[name-defined]
+    return responses.matchers.query_param_matcher({"method": name}, strict_match=False)
+
+
 USER_DATA = {
     "error": [],
     "results": {"checkForm": "c", "USER": {"USER_ID": 42, "BLOG_NAME": "aust-1"}},
@@ -35,6 +41,7 @@ TRACK = {
 @pytest.fixture(autouse=True)
 def fresh_cache() -> None:
     GENRE_CACHE._data.clear()
+    EXPORT_CACHE._data.clear()
 
 
 @responses.activate
@@ -49,6 +56,28 @@ def test_fetch_public_playlist() -> None:
     export = DeezerBackend(SETTINGS).fetch(5, None, lambda s, _d, _t: steps.append(s))
     assert export.genres == {77: ("Pop",)}
     assert steps[0] == "playlist"
+
+
+@responses.activate
+def test_public_playlist_export_is_shared_but_not_through_arl() -> None:
+    playlist = {"id": 5, "title": "P", "nb_tracks": 1, "public": True}
+    responses.get(f"{API}/playlist/5", json=dict(playlist, checksum="abc"))
+    tracks = responses.get(f"{API}/playlist/5/tracks", json={"data": [TRACK]})
+    responses.get(f"{API}/album/77", json={"genres": {"data": [{"name": "Pop"}]}})
+    backend = DeezerBackend(SETTINGS)
+    first = backend.fetch(5, None, lambda *_a: None)
+    oauth = DeezerAuth(kind="oauth", secret="tok", user=User(1, "u"))
+    second = backend.fetch(5, oauth, lambda *_a: None)
+    assert second.tracks == first.tracks
+    assert tracks.call_count == 1  # deuxième export : la playlist seule
+
+    # Session arl : lue sur la passerelle, sans passer par le cache partagé.
+    responses.post(GATEWAY, json=USER_DATA, match=[gw_method("deezer.getUserData")])
+    page = {"DATA": {"PLAYLIST_ID": "5", "NB_SONG": "0", "STATUS": "0"}}
+    responses.post(GATEWAY, json={"error": [], "results": page})
+    responses.post(GATEWAY, json={"error": [], "results": {"data": [], "total": 0}})
+    arl = DeezerAuth(kind="arl", secret="a" * 64, user=User(42, "aust-1"))
+    assert backend.fetch(5, arl, lambda *_a: None).tracks == ()
 
 
 @responses.activate

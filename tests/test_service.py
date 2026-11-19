@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -13,6 +14,7 @@ from conftest import PARIS, PLAYLIST, make_track
 from deezer_export.deezer.gateway import GatewayClient
 from deezer_export.deezer.public import PublicClient
 from deezer_export.service import (
+    ExportCache,
     GenreCache,
     InvalidPlaylistReferenceError,
     export_playlist,
@@ -76,14 +78,17 @@ def test_short_share_link_unreachable() -> None:
 
 
 class FakeSource:
-    def __init__(self, tracks: list[Track]) -> None:
+    def __init__(self, tracks: list[Track], info: PlaylistInfo = PLAYLIST) -> None:
         self.tracks = tracks
+        self.info = info
+        self.track_reads = 0
 
     def playlist(self, playlist_id: int) -> PlaylistInfo:
         assert playlist_id == PLAYLIST.id
-        return PLAYLIST
+        return self.info
 
     def playlist_tracks(self, playlist_id: int) -> list[Track]:
+        self.track_reads += 1
         return self.tracks
 
     def my_playlists(self) -> list[PlaylistInfo]:
@@ -174,3 +179,83 @@ def test_export_playlist_writes_workbook(
     assert seen["id"] == 908622995
     assert isinstance(seen["source"], GatewayClient)
     assert output.exists()
+
+
+def fetch_with(
+    source: FakeSource, exports: ExportCache, genres: FakeGenres | None = None
+) -> PlaylistExport:
+    return fetch_playlist(
+        PLAYLIST.id,
+        source,
+        genres or FakeGenres(),  # type: ignore[arg-type]
+        cache=GenreCache(),
+        exports=exports,
+    )
+
+
+def test_recent_public_export_is_reused_while_checksum_holds() -> None:
+    exports = ExportCache()
+    info = replace(PLAYLIST, checksum="abc")
+    first_source = FakeSource([make_track(1), make_track(2, album_id=2)], info)
+    first = fetch_with(first_source, exports)
+    assert len(exports) == 1
+
+    # Un autre visiteur : une seule requête (la playlist et son checksum).
+    renamed = replace(info, title="Nouveau titre")
+    second_source = FakeSource([], renamed)
+    genres = FakeGenres()
+    steps: list[str] = []
+    second = fetch_playlist(
+        PLAYLIST.id,
+        second_source,
+        genres,  # type: ignore[arg-type]
+        exports=exports,
+        progress=lambda step, _d, _t: steps.append(step),
+    )
+    assert second_source.track_reads == 0
+    assert genres.asked == []
+    assert steps == ["playlist"]
+    assert second.tracks == first.tracks
+    assert second.playlist.title == "Nouveau titre"  # métadonnées fraîches
+    assert second.generated_at >= first.generated_at
+
+    # La playlist a changé : nouvelle lecture complète, et le cache suit.
+    changed = FakeSource([make_track(3)], replace(info, checksum="def"))
+    assert fetch_with(changed, exports).tracks == (make_track(3),)
+    assert changed.track_reads == 1
+    assert exports.get(PLAYLIST.id, "def") is not None
+    assert exports.get(PLAYLIST.id, "abc") is None
+
+
+def test_private_or_unchecked_playlists_are_never_cached() -> None:
+    exports = ExportCache()
+    private = FakeSource([make_track(1)], replace(PLAYLIST, public=False, checksum="x"))
+    fetch_with(private, exports)
+    fetch_with(private, exports)
+    assert private.track_reads == 2
+    no_checksum = FakeSource([make_track(1)], replace(PLAYLIST, checksum=None))
+    fetch_with(no_checksum, exports)
+    assert len(exports) == 0
+
+    # Sans cache (CLI, passerelle arl) : rien n'est gardé ni réutilisé.
+    public = FakeSource([make_track(1)], replace(PLAYLIST, checksum="x"))
+    fetch_playlist(PLAYLIST.id, public, FakeGenres())  # type: ignore[arg-type]
+    fetch_playlist(PLAYLIST.id, public, FakeGenres())  # type: ignore[arg-type]
+    assert public.track_reads == 2
+
+
+def test_export_cache_expiry_and_size(export: PlaylistExport) -> None:
+    public = replace(export, playlist=replace(PLAYLIST, checksum="c"))
+    expired = ExportCache(ttl=-1)
+    expired.put(public)
+    assert expired.get(PLAYLIST.id, "c") is None
+    assert len(expired) == 0
+
+    small = ExportCache(max_tracks=6)  # 4 pistes par export
+    small.put(public)
+    other = replace(public, playlist=replace(public.playlist, id=2))
+    small.put(other)
+    assert small.get(PLAYLIST.id, "c") is None  # le plus ancien a laissé sa place
+    assert small.get(2, "c") is other
+    small.put(replace(public, tracks=public.tracks * 2))  # 8 pistes : trop grand
+    assert small.get(PLAYLIST.id, "c") is None
