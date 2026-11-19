@@ -89,36 +89,76 @@
   </div>
 </section>
 
-<section class="section container" aria-labelledby="titre-pistes">
+{% set tp = tracks %}
+{% macro sort_mark(state) -%}
+{%- if state == 'ascending' %}<span class="sort__mark" aria-hidden="true">↑</span>
+{%- elif state == 'descending' %}<span class="sort__mark" aria-hidden="true">↓</span>
+{%- else %}<span class="sort__mark sort__mark--idle" aria-hidden="true">↑↓</span>{% endif -%}
+{%- endmacro %}
+<section id="pistes" class="section container" aria-labelledby="titre-pistes">
   <div class="section__head">
     <h2 id="titre-pistes" class="t-section">Pistes</h2>
-    <p class="t-label">{{ '%02d' % stats.track_count }} entrées</p>
+    <p class="t-label">
+      {% if tp.query %}{{ tp.matched }} / {{ tp.total }} entrées{% else %}{{ '%02d' % tp.total }} entrées{% endif %}
+    </p>
   </div>
+  <form class="form-row tracks-filter" method="get" action="#pistes" role="search" aria-label="Filtrer les pistes">
+    <label class="field">
+      <span class="t-label">Filtrer par titre, artiste, album ou genre</span>
+      <input type="search" name="q" value="{{ tp.query }}" maxlength="100" autocomplete="off" spellcheck="false" />
+    </label>
+    {% if tp.sort != 'num' %}<input type="hidden" name="tri" value="{{ tp.sort }}" />{% endif %}
+    <button type="submit" class="cta">Filtrer</button>
+    {% if tp.query %}<a class="link-mono" href="?{% if tp.sort != 'num' %}tri={{ tp.sort }}{% endif %}#pistes">Tout afficher</a>{% endif %}
+  </form>
   <div class="table-wrap">
     <table class="table table--tracks">
+      <caption class="visually-hidden">
+        {% if tp.rows %}Pistes {{ tp.first }} à {{ tp.last }} sur {{ tp.matched }}, page {{ tp.page }} sur {{ tp.pages }}{% else %}Aucune piste{% endif %}{% if tp.query %} (filtre « {{ tp.query }} »){% endif %}
+      </caption>
       <thead>
         <tr>
-          <th scope="col" class="num">#</th>
+          <th scope="col" class="num" aria-sort="{{ tp.aria_sort('num') }}">
+            <a class="sort" href="{{ tp.sort_url('num') }}"><span aria-hidden="true">#</span><span class="visually-hidden">numéro</span>{{ sort_mark(tp.aria_sort('num')) }}</a>
+          </th>
           <th scope="col">titre</th>
           <th scope="col">artiste</th>
           <th scope="col">album</th>
-          <th scope="col" class="num">durée</th>
+          <th scope="col" class="num" aria-sort="{{ tp.aria_sort('duree') }}">
+            <a class="sort" href="{{ tp.sort_url('duree') }}">durée{{ sort_mark(tp.aria_sort('duree')) }}</a>
+          </th>
           <th scope="col">genres</th>
         </tr>
       </thead>
       <tbody>
-        {% for t in export.tracks %}
+        {% for row in tp.rows %}
+        {% set t = row.track %}
         <tr>
-          <td class="num muted">{{ loop.index }}</td>
+          <td class="num muted">{{ row.number }}</td>
           <td><a href="{{ t.link }}">{{ t.title }}</a></td>
           <td>{{ t.artist }}</td>
           <td>{{ t.album }}</td>
           <td class="num">{{ t.duration|clock }}</td>
-          <td class="muted">{{ export.genres_of(t)|join(', ') }}</td>
+          <td class="muted">{{ row.genres|join(', ') }}</td>
         </tr>
+        {% else %}
+        <tr><td colspan="6" class="muted">Aucune piste ne correspond à « {{ tp.query }} ».</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {% if tp.pages > 1 %}
+  <nav class="pager t-ui" aria-label="Pages de la liste des pistes">
+    {% if tp.page > 1 %}
+    <a class="link-mono" href="{{ tp.url(page=1) }}">« première</a>
+    <a class="link-mono" href="{{ tp.url(page=tp.page - 1) }}" rel="prev">← précédente</a>
+    {% endif %}
+    <span class="pager__current" aria-current="page">page {{ tp.page }} / {{ tp.pages }}</span>
+    {% if tp.page < tp.pages %}
+    <a class="link-mono" href="{{ tp.url(page=tp.page + 1) }}" rel="next">suivante →</a>
+    <a class="link-mono" href="{{ tp.url(page=tp.pages) }}">dernière »</a>
+    {% endif %}
+  </nav>
+  {% endif %}
 </section>
 {% endblock %}

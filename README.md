@@ -173,7 +173,8 @@ uv run deezer-export-web          # http://127.0.0.1:8000 (HOST et PORT modifiab
    rafraîchissement automatique sans JS.
 3. La page de résultat affiche :
    - les chiffres clés, la vue d'ensemble et les genres ;
-   - les classements et la liste des pistes ;
+   - les classements et la liste des pistes, par pages de 100, avec un filtre (titre,
+     artiste, album, genre) et un tri par numéro ou par durée, le tout sans JS ;
    - le bouton de téléchargement du classeur.
 
 Le résultat reste disponible 30 minutes, puis il est oublié. Une grande playlist prend

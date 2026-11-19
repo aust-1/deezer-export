@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 from io import BytesIO
 from typing import TYPE_CHECKING
 
 import pytest
-from conftest import ARL, PLAYLIST, FakeBackend, csrf_of, wait_job
+from conftest import ARL, PLAYLIST, FakeBackend, csrf_of, make_track, wait_job
 from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
@@ -370,3 +371,47 @@ def test_job_manager_limits(export: PlaylistExport) -> None:
     finally:
         release.append(True)
         jobs.shutdown()
+
+
+TRACK_LINK = '<td><a href="https://www.deezer.com/track/'
+
+
+def test_result_page_paginates_filters_and_sorts_tracks(
+    client: TestClient, backend: FakeBackend
+) -> None:
+    tracks = tuple(
+        make_track(n, artist="Nina Simone" if n == 150 else "Artiste", duration=n)
+        for n in range(1, 231)
+    )
+    backend.export = replace(backend.export, tracks=tracks)
+    location = client.post(
+        "/exports", data={"csrf": csrf_of(client), "playlist": "1"}
+    ).headers["location"]
+    wait_job(client, location)
+
+    first = client.get(location).text
+    assert first.count(TRACK_LINK) == 100
+    assert "Titre 100</a>" in first
+    assert "Titre 101</a>" not in first
+    assert "page 1 / 3" in first
+    assert 'href="?page=2#pistes" rel="next"' in first
+    assert '<p class="figure__n">230</p>' in first  # chiffres clés : toute la liste
+
+    last = client.get(location, params={"page": "3"}).text
+    assert last.count(TRACK_LINK) == 30
+    assert "Titre 230</a>" in last
+    assert 'rel="prev"' in last
+    assert 'rel="next"' not in last
+
+    found = client.get(location, params={"q": "nina"}).text
+    assert found.count(TRACK_LINK) == 1
+    assert '<td class="num muted">150</td>' in found  # numéro dans la playlist
+    assert "1 / 230 entrées" in found
+    assert 'class="pager' not in found
+
+    longest = client.get(location, params={"tri": "-duree"}).text
+    assert longest.index("Titre 230</a>") < longest.index("Titre 229</a>")
+    assert 'aria-sort="descending"' in longest
+
+    none = client.get(location, params={"q": "<script>"}).text
+    assert "Aucune piste ne correspond à « &lt;script&gt; »" in none
