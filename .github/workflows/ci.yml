@@ -21,8 +21,8 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
-      - name: Dépendances (figées par uv.lock)
-        run: uv sync --locked
+      - name: Dépendances (figées par uv.lock ; Playwright pour typer les tests navigateur)
+        run: uv sync --locked --group e2e
       - name: Format
         run: uv run ruff format --check src tests
       - name: Lint
@@ -35,6 +35,29 @@ jobs:
           uv run pyright
       - name: Tests, sans réseau (Deezer est simulé)
         run: uv run pytest
+
+  e2e:
+    name: Navigateur (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - name: Dépendances (figées par uv.lock), avec Playwright
+        run: uv sync --locked --group e2e
+      - name: Chromium et ses bibliothèques système
+        run: uv run playwright install --with-deps chromium
+      - name: Tests dans Chromium, sans réseau (Deezer est simulé)
+        run: uv run pytest -m e2e --no-cov --browser chromium --tracing retain-on-failure --output test-results/traces
+      - name: Captures (clair, sombre, mobile) et traces des échecs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: captures-navigateur
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 14
 
   image:
     name: Image Docker

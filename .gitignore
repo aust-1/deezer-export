@@ -223,3 +223,6 @@ output/
 # Secrets (contrat du dépôt opt : seul .env.example est versionné)
 .env.*
 !.env.example
+
+# Tests Playwright : captures et traces
+test-results/

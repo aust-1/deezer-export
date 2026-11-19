@@ -43,9 +43,13 @@ dev = [
     "ruff>=0.14.10",
     "types-requests>=2.32.4",
 ]
+# Tests dans un vrai navigateur (job « Navigateur » de la CI) :
+# uv sync --group e2e && uv run playwright install chromium
+e2e = ["pytest-playwright>=0.7.1"]
 
 [tool.pytest.ini_options]
-addopts = "--cov=deezer_export --cov-report=term-missing"
+addopts = "--cov=deezer_export --cov-report=term-missing -m 'not e2e'"
+markers = ["e2e: tests dans un vrai navigateur (Playwright), lancés par pytest -m e2e"]
 testpaths = ["tests"]
 
 [tool.coverage.run]
