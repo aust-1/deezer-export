@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from deezer_export.deezer.gateway import GatewayClient
 from deezer_export.deezer.oauth import authorize_url, exchange_code
 from deezer_export.deezer.public import PublicClient
-from deezer_export.service import fetch_playlist, make_source
+from deezer_export.service import EXPORT_CACHE, fetch_playlist, make_source
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -34,7 +34,7 @@ class DeezerBackend:
         auth: DeezerAuth | None,
         progress: Callable[[str, int, int], None],
     ) -> PlaylistExport:
-        """Récupère une playlist complète.
+        """Récupère une playlist complète, ou son export récent si elle est publique.
 
         Args:
             playlist_id (int): L'ID de la playlist.
@@ -45,7 +45,12 @@ class DeezerBackend:
             PlaylistExport: La playlist, ses pistes et leurs genres.
         """
         source, public = make_source(**_credentials(auth))
-        return fetch_playlist(playlist_id, source, public, progress=progress)
+        # Cache partagé seulement si la playlist est lue sur l'API publique (anonyme
+        # ou OAuth) : la passerelle arl renvoie une vue propre au compte.
+        exports = EXPORT_CACHE if source is public else None
+        return fetch_playlist(
+            playlist_id, source, public, exports=exports, progress=progress
+        )
 
     @staticmethod
     def my_playlists(auth: DeezerAuth) -> list[PlaylistInfo]:

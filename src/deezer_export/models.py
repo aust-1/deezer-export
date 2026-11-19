@@ -33,6 +33,7 @@ class PlaylistInfo:
     owner: str
     link: str
     picture: str | None = None  # pochette 250 px
+    checksum: str | None = None  # empreinte de la liste des pistes (API publique)
 
 
 @dataclass(frozen=True, slots=True)

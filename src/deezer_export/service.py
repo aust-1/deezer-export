@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import threading
 import time
+from dataclasses import replace
 from datetime import datetime as dt
 from typing import TYPE_CHECKING, Protocol
 from urllib.parse import urlparse
@@ -117,6 +118,80 @@ class GenreCache:
 GENRE_CACHE = GenreCache()
 
 
+class ExportCache:
+    """Exports récents de playlists **publiques**, partagés entre visiteurs.
+
+    Une entrée est indexée par l'ID de la playlist et n'est réutilisée que si le
+    ``checksum`` de sa liste de pistes n'a pas changé : vérifier coûte une requête,
+    au lieu d'une par page de pistes. Les playlists privées n'y entrent jamais.
+    """
+
+    def __init__(self, ttl: float = 15 * 60, max_tracks: int = 100_000) -> None:
+        """Initialise un cache vide.
+
+        Args:
+            ttl (float): Durée de validité d'une entrée, en secondes.
+            max_tracks (int): Nombre total de pistes gardées (borne la mémoire).
+        """
+        self._ttl = ttl
+        self._max_tracks = max_tracks
+        self._data: dict[int, tuple[float, str, PlaylistExport]] = {}
+        self._lock = threading.Lock()
+
+    def get(self, playlist_id: int, checksum: str) -> PlaylistExport | None:
+        """Renvoie l'export en cache d'une playlist, s'il est récent et à jour.
+
+        Args:
+            playlist_id (int): L'ID de la playlist.
+            checksum (str): Le ``checksum`` actuel de sa liste de pistes.
+
+        Returns:
+            PlaylistExport | None: L'export, ou None s'il est absent, expiré ou si
+            la playlist a changé depuis.
+        """
+        with self._lock:
+            entry = self._data.get(playlist_id)
+            if entry is None:
+                return None
+            stored_at, stored_checksum, export = entry
+            if time.monotonic() - stored_at > self._ttl:
+                del self._data[playlist_id]
+                return None
+            return export if stored_checksum == checksum else None
+
+    def put(self, export: PlaylistExport) -> None:
+        """Mémorise l'export d'une playlist publique dont le ``checksum`` est connu.
+
+        Args:
+            export (PlaylistExport): L'export (ignoré si la playlist est privée ou
+                sans ``checksum``, ou trop grande pour le cache).
+        """
+        info = export.playlist
+        size = len(export.tracks)
+        if not info.public or not info.checksum or size > self._max_tracks:
+            return
+        with self._lock:
+            self._data.pop(info.id, None)
+            while self._data and self._tracks() + size > self._max_tracks:
+                oldest = min(self._data, key=lambda k: self._data[k][0])
+                del self._data[oldest]
+            self._data[info.id] = (time.monotonic(), info.checksum, export)
+
+    def __len__(self) -> int:
+        """Nombre d'exports en cache.
+
+        Returns:
+            int: Le nombre d'entrées.
+        """
+        return len(self._data)
+
+    def _tracks(self) -> int:
+        return sum(len(e[2].tracks) for e in self._data.values())
+
+
+EXPORT_CACHE = ExportCache()
+
+
 def parse_playlist_reference(
     value: str,
     session: requests.Session | None = None,
@@ -189,6 +264,7 @@ def fetch_playlist(
     genres_client: PublicClient,
     *,
     cache: GenreCache = GENRE_CACHE,
+    exports: ExportCache | None = None,
     progress: Callable[[str, int, int], None] | None = None,
     now: Callable[[], dt] = lambda: dt.now(PARIS),
 ) -> PlaylistExport:
@@ -199,6 +275,8 @@ def fetch_playlist(
         source (PlaylistSource): D'où lire la playlist et ses pistes.
         genres_client (PublicClient): Client de l'API publique pour les albums.
         cache (GenreCache): Cache des genres par album.
+        exports (ExportCache | None): Cache des exports de playlists publiques, à
+            ne passer que si ``source`` est l'API publique (même vue pour tous).
         progress (Callable[[str, int, int], None] | None): Rappel
             ``(étape, fait, total)`` appelé au fil de l'avancement.
         now (Callable[[], dt]): Horloge (injectable pour les tests).
@@ -209,19 +287,26 @@ def fetch_playlist(
     notify = progress or (lambda _step, _done, _total: None)
     notify("playlist", 0, 0)
     info = source.playlist(playlist_id)
+    if exports is not None and info.public and info.checksum:
+        recent = exports.get(info.id, info.checksum)
+        if recent is not None:  # rien n'a changé : vérifié à l'instant
+            return replace(recent, playlist=info, generated_at=now())
     notify("tracks", 0, info.nb_tracks)
     tracks = tuple(source.playlist_tracks(playlist_id))
 
     album_ids = list(dict.fromkeys(t.album_id for t in tracks if t.album_id))
     genres = _album_genres(album_ids, genres_client, cache, notify)
 
-    return PlaylistExport(
+    export = PlaylistExport(
         playlist=info,
         tracks=tracks,
         genres=genres,
         generated_at=now(),
         albums_queried=len(album_ids),
     )
+    if exports is not None:
+        exports.put(export)
+    return export
 
 
 def _album_genres(

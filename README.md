@@ -16,6 +16,10 @@ Projet personnel, non affilié à Deezer.
 - Récupération de **toutes** les pistes d'une playlist (pagination automatique).
 - Enrichissement par les **genres** de l'album de chaque piste : une requête par album
   distinct, mise en cache.
+- **Exports récents réutilisés** (site) : le résultat d'une playlist publique est gardé
+  15 minutes en mémoire. Un nouvel export de la même playlist ne coûte qu'une requête, qui
+  vérifie le `checksum` de sa liste de pistes ; si elle a changé, tout est relu. Les playlists
+  privées et celles lues par cookie `arl` ne sont jamais partagées entre sessions.
 - **Playlists privées** : connexion par OAuth (si tu as une application Deezer) ou par le
   cookie de session `arl` (voir [Playlists privées](#playlists-privées)).
 - **Respect du quota Deezer** : environ 50 requêtes toutes les 5 secondes par adresse IP.

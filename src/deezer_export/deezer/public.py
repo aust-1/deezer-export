@@ -290,4 +290,5 @@ def playlist_from_api(data: dict[str, Any]) -> PlaylistInfo:
         owner=str((data.get("creator") or {}).get("name", "")),
         link=str(data.get("link") or f"https://www.deezer.com/playlist/{playlist_id}"),
         picture=data.get("picture_medium") or None,
+        checksum=str(data.get("checksum") or "") or None,
     )
