@@ -25,7 +25,13 @@ from deezer_export.deezer.errors import (
     QuotaExceededError,
 )
 from deezer_export.deezer.http import TIMEOUT, RateLimiter, make_session
-from deezer_export.deezer.public import BLOCKED_MESSAGE, HTTP_BLOCKED
+from deezer_export.deezer.public import (
+    BLOCKED_MESSAGE,
+    HTTP_BLOCKED,
+    from_timestamp,
+    optional_bool,
+    optional_int,
+)
 from deezer_export.models import PlaylistInfo, Track, User
 
 if TYPE_CHECKING:
@@ -259,7 +265,21 @@ def track_from_gateway(data: dict[str, Any]) -> Track:
         album_id=int(data.get("ALB_ID") or 0),
         duration=int(data.get("DURATION") or 0),
         link=f"https://www.deezer.com/track/{data.get('SNG_ID')}",
+        added_at=from_timestamp(data.get("DATE_ADD")),
+        rank=optional_int(data.get("RANK_SNG") or data.get("RANK")),
+        explicit=_explicit(data),
+        isrc=str(data.get("ISRC") or "") or None,
     )
+
+
+def _explicit(data: dict[str, Any]) -> bool | None:
+    if "EXPLICIT_LYRICS" in data:
+        return optional_bool(data["EXPLICIT_LYRICS"])
+    content = data.get("EXPLICIT_TRACK_CONTENT")
+    if isinstance(content, dict) and "EXPLICIT_LYRICS_STATUS" in content:
+        # 1 : explicite ; 0, 2, 3… : non explicite, nettoyée, inconnue.
+        return optional_int(content["EXPLICIT_LYRICS_STATUS"]) == 1
+    return None
 
 
 def playlist_from_gateway(

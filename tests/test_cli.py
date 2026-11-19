@@ -31,9 +31,14 @@ def test_exports_playlist_given_as_link(
     calls: list[tuple[object, ...]] = []
 
     def fake(
-        playlist: int, output: str, *, arl: str | None, access_token: str | None
+        playlist: int,
+        output: str,
+        *,
+        arl: str | None,
+        access_token: str | None,
+        file_format: str,
     ) -> PlaylistExport:
-        calls.append((playlist, output, arl, access_token))
+        calls.append((playlist, output, arl, access_token, file_format))
         return export
 
     monkeypatch.setattr(cli, "export_playlist", fake)
@@ -41,7 +46,7 @@ def test_exports_playlist_given_as_link(
     assert (
         cli.main(["https://www.deezer.com/fr/playlist/908622995", "-o", "x.xlsx"]) == 0
     )
-    assert calls == [(908622995, "x.xlsx", "cookie", None)]
+    assert calls == [(908622995, "x.xlsx", "cookie", None, "xlsx")]
     assert (
         "4 pistes exportées vers x.xlsx (3 albums interrogés)"
         in capsys.readouterr().out
@@ -98,3 +103,55 @@ def test_mine_lists_playlists(
     monkeypatch.setenv(cli.ENV_ACCESS_TOKEN, "tok")
     assert cli.main(["--mine"]) == 0
     assert "908622995\t    4 pistes\tpublique\tEn mode 60" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("args", "output", "file_format", "message"),
+    [
+        (["1", "-o", "p.csv"], "p.csv", "csv", "fichier CSV"),
+        (["1", "-o", "P.CSV"], "P.CSV", "csv", "fichier CSV"),
+        (["1", "-o", "p.txt", "--format", "csv"], "p.txt", "csv", "fichier CSV"),
+        (["1", "-o", "p.csv", "-f", "xlsx"], "p.csv", "xlsx", "fichier Excel"),
+        (["1", "-o", "p"], "p", "xlsx", "fichier Excel"),
+    ],
+)
+def test_format_from_extension_or_option(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    export: PlaylistExport,
+    args: list[str],
+    output: str,
+    file_format: str,
+    message: str,
+) -> None:
+    seen: list[tuple[str, str]] = []
+
+    def fake(_playlist: int, out: str, **kw: str) -> PlaylistExport:
+        seen.append((out, kw["file_format"]))
+        return export
+
+    monkeypatch.setattr(cli, "export_playlist", fake)
+    assert cli.main(args) == 0
+    assert seen == [(output, file_format)]
+    assert message in capsys.readouterr().out
+
+
+def test_csv_default_output(
+    monkeypatch: pytest.MonkeyPatch, export: PlaylistExport
+) -> None:
+    outputs: list[str] = []
+
+    def fake(_playlist: int, output: str, **_kw: object) -> PlaylistExport:
+        outputs.append(output)
+        return export
+
+    monkeypatch.setattr(cli, "export_playlist", fake)
+    assert cli.main(["123", "--format", "csv"]) == 0
+    assert outputs[0].startswith("output/playlist_123_")
+    assert outputs[0].endswith(".csv")
+
+
+def test_unknown_format_is_rejected(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit):
+        cli.main(["1", "--format", "ods"])
+    assert "invalid choice" in capsys.readouterr().err

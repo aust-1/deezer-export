@@ -132,6 +132,18 @@ def test_export_flow(client: TestClient, backend: FakeBackend) -> None:
         "Statistiques",
     ]
 
+    assert "Télécharger en CSV" in page.text
+    csv = client.get(f"{location}/pistes.csv")
+    assert csv.status_code == 200
+    assert csv.headers["content-type"] == "text/csv; charset=utf-8"
+    assert (
+        'filename="playlist_908622995_2026-11-13.csv"'
+        in csv.headers["content-disposition"]
+    )
+    lines = csv.content.decode("utf-8-sig").splitlines()
+    assert lines[0].startswith("title;artist;album;duration_s;link;added_at")
+    assert len(lines) == 5
+
 
 def test_progress_page_while_running(client: TestClient, backend: FakeBackend) -> None:
     started: list[int] = []
@@ -151,6 +163,7 @@ def test_progress_page_while_running(client: TestClient, backend: FakeBackend) -
     assert "Analyse" in page.text
     assert 'http-equiv="refresh"' in page.text
     assert client.get(f"{location}/classeur.xlsx").status_code == 404
+    assert client.get(f"{location}/pistes.csv").status_code == 404
     release.append(True)
     assert wait_job(client, location)["status"] == "done"
 
@@ -206,6 +219,7 @@ def test_jobs_belong_to_their_session(
     with TestClient(client.app) as stranger:
         assert stranger.get(location).status_code == 404
         assert stranger.get(f"{location}/classeur.xlsx").status_code == 404
+        assert stranger.get(f"{location}/pistes.csv").status_code == 404
         assert stranger.get(f"{location}/etat").status_code == 404
 
 

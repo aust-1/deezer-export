@@ -37,6 +37,9 @@ class PlaylistStats:
     top_artists: tuple[RankingRow, ...]
     top_albums: tuple[RankingRow, ...]
     top_genres: tuple[RankingRow, ...]
+    most_popular: Track | None = None  # rang Deezer le plus haut
+    least_popular: Track | None = None
+    added_by_month: tuple[tuple[str, int], ...] = ()  # (« AAAA-MM », pistes)
 
 
 def compute_stats(export: PlaylistExport, top_n: int = TOP_N) -> PlaylistStats:
@@ -44,7 +47,9 @@ def compute_stats(export: PlaylistExport, top_n: int = TOP_N) -> PlaylistStats:
 
     Les albums sont distingués par leur ID (deux « Greatest Hits » d'artistes
     différents comptent pour deux) et affichés par leur titre. Une piste dont
-    l'album n'a aucun genre compte dans « (sans genre) ».
+    l'album n'a aucun genre compte dans « (sans genre) ». Les pistes sans rang ou sans
+    date d'ajout (passerelle, anciennes playlists) sont ignorées par les indicateurs
+    correspondants.
 
     Args:
         export (PlaylistExport): La playlist récupérée.
@@ -66,6 +71,11 @@ def compute_stats(export: PlaylistExport, top_n: int = TOP_N) -> PlaylistStats:
     for album_id, count in albums_by_id.most_common():
         albums[_unique_title(album_titles[album_id], albums)] = count
 
+    ranked = [t for t in tracks if t.rank is not None]
+    months = Counter(
+        t.added_at.strftime("%Y-%m") for t in tracks if t.added_at is not None
+    )
+
     return PlaylistStats(
         track_count=len(tracks),
         artist_count=len(artists),
@@ -78,7 +88,14 @@ def compute_stats(export: PlaylistExport, top_n: int = TOP_N) -> PlaylistStats:
         top_artists=_ranking(artists, top_n),
         top_albums=_ranking(albums, top_n),
         top_genres=_ranking(genres, top_n),
+        most_popular=max(ranked, key=_rank, default=None),
+        least_popular=min(ranked, key=_rank, default=None),
+        added_by_month=tuple(sorted(months.items())),
     )
+
+
+def _rank(track: Track) -> int:
+    return track.rank or 0
 
 
 def _unique_title(title: str, taken: Counter[str]) -> str:

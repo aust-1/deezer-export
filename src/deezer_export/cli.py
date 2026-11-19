@@ -1,4 +1,7 @@
-"""Ligne de commande : ``deezer-export [PLAYLIST] [-o FICHIER] [--mine]``."""
+"""Ligne de commande : ``deezer-export [PLAYLIST] [-o FICHIER] [-f FMT] [--mine]``.
+
+Le format (``xlsx`` ou ``csv``) suit l'extension du fichier, sauf avec ``--format``.
+"""
 
 from __future__ import annotations
 
@@ -12,16 +15,19 @@ from dotenv import load_dotenv
 
 from deezer_export.deezer.errors import DeezerError
 from deezer_export.service import (
+    FORMATS,
     PARIS,
     InvalidPlaylistReferenceError,
     export_playlist,
     make_source,
+    output_format,
     parse_playlist_reference,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+FORMAT_NAMES = {"xlsx": "Excel", "csv": "CSV"}
 ENV_PLAYLIST_ID = "DEEZER_PLAYLIST_ID"
 ENV_ARL = "DEEZER_ARL"
 ENV_ACCESS_TOKEN = "DEEZER_ACCESS_TOKEN"  # ruff: ignore[hardcoded-password-string] - nom de variable, pas un secret
@@ -35,7 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
     """
     parser = argparse.ArgumentParser(
         prog="deezer-export",
-        description="Exporte une playlist Deezer vers un classeur Excel.",
+        description="Exporte une playlist Deezer vers un classeur Excel ou un CSV.",
         epilog=(
             f"Authentification (playlists privées) : {ENV_ARL} ou {ENV_ACCESS_TOKEN}, "
             "dans l'environnement ou le fichier .env."
@@ -49,7 +55,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-o",
         "--output",
-        help="fichier .xlsx à écrire (défaut : output/playlist_<id>_<date>.xlsx)",
+        help=(
+            "fichier à écrire, .xlsx ou .csv d'après l'extension "
+            "(défaut : output/playlist_<id>_<date>.xlsx)"
+        ),
+    )
+    parser.add_argument(
+        "-f",
+        "--format",
+        choices=FORMATS,
+        help="format du fichier, quelle que soit son extension (défaut : xlsx)",
     )
     parser.add_argument(
         "--mine",
@@ -76,7 +91,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.mine:
             return _list_mine(arl=arl, access_token=token)
-        return _export(args.playlist, args.output, arl=arl, access_token=token)
+        return _export(
+            args.playlist, args.output, args.format, arl=arl, access_token=token
+        )
     except (DeezerError, InvalidPlaylistReferenceError) as exc:
         _err(str(exc))
         return 1
@@ -85,6 +102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _export(
     playlist_arg: str | None,
     output_arg: str | None,
+    format_arg: str | None,
     *,
     arl: str | None,
     access_token: str | None,
@@ -98,9 +116,12 @@ def _export(
         return 2
 
     playlist_id = parse_playlist_reference(playlist)
-    output = output_arg or _default_output(playlist_id)
-    _out("Exportation de la playlist Deezer vers un fichier Excel…")
-    export = export_playlist(playlist_id, output, arl=arl, access_token=access_token)
+    output = output_arg or _default_output(playlist_id, format_arg or "xlsx")
+    fmt = output_format(output, format_arg)
+    _out(f"Exportation de la playlist Deezer vers un fichier {FORMAT_NAMES[fmt]}…")
+    export = export_playlist(
+        playlist_id, output, arl=arl, access_token=access_token, file_format=fmt
+    )
     _out(
         f"{len(export.tracks)} pistes exportées vers {output} "
         f"({export.albums_queried} albums interrogés)"
@@ -119,8 +140,8 @@ def _list_mine(*, arl: str | None, access_token: str | None) -> int:
     return 0
 
 
-def _default_output(playlist_id: int) -> str:
-    return f"output/playlist_{playlist_id}_{dt.now(PARIS).date().isoformat()}.xlsx"
+def _default_output(playlist_id: int, fmt: str) -> str:
+    return f"output/playlist_{playlist_id}_{dt.now(PARIS).date().isoformat()}.{fmt}"
 
 
 def _out(message: str) -> None:

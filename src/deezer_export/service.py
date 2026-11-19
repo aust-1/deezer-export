@@ -6,12 +6,14 @@ import re
 import threading
 import time
 from datetime import datetime as dt
+from pathlib import PurePath
 from typing import TYPE_CHECKING, Protocol
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 import requests
 
+from deezer_export.csv_export import save_csv
 from deezer_export.deezer.gateway import GatewayClient
 from deezer_export.deezer.http import TIMEOUT, make_session
 from deezer_export.deezer.public import PublicClient
@@ -30,6 +32,7 @@ SHORT_LINK_HOSTS = frozenset({"link.deezer.com", "deezer.page.link"})
 _DEEZER_HOSTS = ("deezer.com", "www.deezer.com")
 _PLAYLIST_PATH = re.compile(r"/playlist/(\d+)")
 _DIGITS = re.compile(r"\d{1,20}")
+FORMATS = ("xlsx", "csv")
 
 
 class PlaylistSource(Protocol):
@@ -243,23 +246,49 @@ def _album_genres(
     return genres
 
 
+def output_format(output: str | Path, file_format: str | None = None) -> str:
+    """Choisit le format de sortie : celui demandé, sinon d'après l'extension.
+
+    Args:
+        output (str | Path): Le chemin du fichier de sortie.
+        file_format (str | None): ``csv`` ou ``xlsx``, pour forcer le format.
+
+    Returns:
+        str: ``csv`` ou ``xlsx`` (défaut, y compris pour une extension inconnue).
+
+    Raises:
+        ValueError: Format demandé inconnu.
+    """
+    if file_format is not None:
+        if file_format not in FORMATS:
+            msg = f"Format inconnu : {file_format} (attendu : csv ou xlsx)."
+            raise ValueError(msg)
+        return file_format
+    suffix = PurePath(output).suffix.lower().lstrip(".")
+    return suffix if suffix in FORMATS else "xlsx"
+
+
 def export_playlist(
     playlist: str | int,
     output: str | Path = "playlist.xlsx",
     *,
     arl: str | None = None,
     access_token: str | None = None,
+    file_format: str | None = None,
 ) -> PlaylistExport:
-    """Exporte une playlist Deezer vers un fichier Excel.
+    """Exporte une playlist Deezer vers un classeur Excel ou un fichier CSV.
 
     Le classeur contient deux feuilles : « Playlist » (une ligne par piste) et
-    « Statistiques » (indicateurs globaux et classements).
+    « Statistiques » (indicateurs globaux et classements). Le CSV reprend les
+    colonnes de la feuille « Playlist ».
 
     Args:
         playlist (str | int): L'ID de la playlist, ou son lien Deezer.
         output (str | Path): Le chemin du fichier de sortie.
         arl (str | None): Cookie « arl », pour une playlist privée.
         access_token (str | None): Jeton OAuth, pour une playlist privée.
+        file_format (str | None): ``csv`` ou ``xlsx`` ; par défaut, d'après
+            l'extension de ``output``.
 
     Returns:
         PlaylistExport: Les données exportées.
@@ -268,10 +297,14 @@ def export_playlist(
     (`InvalidPlaylistReferenceError`) remontent telles quelles.
 
     """
+    fmt = output_format(output, file_format)
     playlist_id = (
         playlist if isinstance(playlist, int) else parse_playlist_reference(playlist)
     )
     source, genres_client = make_source(arl=arl, access_token=access_token)
     export = fetch_playlist(playlist_id, source, genres_client)
-    save_workbook(export, output)
+    if fmt == "csv":
+        save_csv(export, output)
+    else:
+        save_workbook(export, output)
     return export

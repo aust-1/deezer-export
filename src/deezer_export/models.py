@@ -20,6 +20,10 @@ class Track:
     album_id: int
     duration: int  # en secondes
     link: str
+    added_at: datetime | None = None  # ajout à la playlist (heure de Paris)
+    rank: int | None = None  # popularité Deezer : plus c'est haut, plus c'est écouté
+    explicit: bool | None = None  # paroles explicites
+    isrc: str | None = None  # code international de l'enregistrement
 
 
 @dataclass(frozen=True, slots=True)

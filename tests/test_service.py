@@ -18,6 +18,7 @@ from deezer_export.service import (
     export_playlist,
     fetch_playlist,
     make_source,
+    output_format,
     parse_playlist_reference,
 )
 
@@ -174,3 +175,27 @@ def test_export_playlist_writes_workbook(
     assert seen["id"] == 908622995
     assert isinstance(seen["source"], GatewayClient)
     assert output.exists()
+
+
+def test_output_format() -> None:
+    assert output_format("a.csv") == "csv"
+    assert output_format("dossier/A.CSV") == "csv"
+    assert output_format("a.xlsx") == "xlsx"
+    assert output_format("a") == "xlsx"
+    assert output_format("a.csv", "xlsx") == "xlsx"
+    with pytest.raises(ValueError, match="Format inconnu"):
+        output_format("a.csv", "ods")
+
+
+def test_export_playlist_writes_csv(
+    tmp_path: Path, export: PlaylistExport, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "deezer_export.service.fetch_playlist", lambda *_a, **_kw: export
+    )
+    output = tmp_path / "p.csv"
+    export_playlist(908622995, output)
+    assert output.read_text(encoding="utf-8-sig").startswith("title;artist;album")
+    other = tmp_path / "p.data"
+    export_playlist(908622995, other, file_format="csv")
+    assert other.read_bytes() == output.read_bytes()

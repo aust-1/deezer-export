@@ -28,6 +28,7 @@
   </div>
   <div class="actions section">
     <a class="cta" href="/exports/{{ job.id }}/classeur.xlsx" download>Télécharger le classeur .xlsx →</a>
+    <a class="link-mono" href="/exports/{{ job.id }}/pistes.csv" download>Télécharger en CSV</a>
     <a class="link-mono" href="{{ p.link }}">Ouvrir sur Deezer</a>
     <a class="link-mono" href="/#exporter">Nouvelle analyse</a>
   </div>
@@ -60,6 +61,10 @@
       <div><dt class="t-label">Durée moyenne</dt><dd>{{ stats.average_duration|duration }}</dd></div>
       <div><dt class="t-label">Plus longue</dt><dd>{{ stats.longest|track }}</dd></div>
       <div><dt class="t-label">Plus courte</dt><dd>{{ stats.shortest|track }}</dd></div>
+      {% if stats.most_popular %}
+      <div><dt class="t-label">Plus populaire</dt><dd>{{ stats.most_popular|track }}</dd></div>
+      <div><dt class="t-label">Moins populaire</dt><dd>{{ stats.least_popular|track }}</dd></div>
+      {% endif %}
       <div><dt class="t-label">Albums interrogés</dt><dd>{{ export.albums_queried }}</dd></div>
     </dl>
   </div>
@@ -103,6 +108,7 @@
           <th scope="col">artiste</th>
           <th scope="col">album</th>
           <th scope="col" class="num">durée</th>
+          <th scope="col" class="num">ajoutée le</th>
           <th scope="col">genres</th>
         </tr>
       </thead>
@@ -114,6 +120,7 @@
           <td>{{ t.artist }}</td>
           <td>{{ t.album }}</td>
           <td class="num">{{ t.duration|clock }}</td>
+          <td class="num muted">{% if t.added_at %}<time datetime="{{ t.added_at.isoformat() }}">{{ t.added_at.strftime('%d/%m/%Y') }}</time>{% else %}—{% endif %}</td>
           <td class="muted">{{ export.genres_of(t)|join(', ') }}</td>
         </tr>
         {% endfor %}

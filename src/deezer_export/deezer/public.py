@@ -11,7 +11,9 @@ Deezer signale ses erreurs dans le corps JSON, avec un statut HTTP 200 :
 from __future__ import annotations
 
 import time
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, NoReturn
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -29,6 +31,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
 API = "https://api.deezer.com"
+PARIS = ZoneInfo("Europe/Paris")
 PAGE_SIZE = 100
 
 # Codes d'erreur documentés par Deezer.
@@ -269,6 +272,10 @@ def track_from_api(data: dict[str, Any]) -> Track:
         album_id=int(data["album"]["id"]),
         duration=int(data["duration"]),
         link=str(data.get("link") or f"https://www.deezer.com/track/{data['id']}"),
+        added_at=from_timestamp(data.get("time_add")),
+        rank=optional_int(data.get("rank")),
+        explicit=optional_bool(data.get("explicit_lyrics")),
+        isrc=str(data.get("isrc") or "") or None,
     )
 
 
@@ -291,3 +298,50 @@ def playlist_from_api(data: dict[str, Any]) -> PlaylistInfo:
         link=str(data.get("link") or f"https://www.deezer.com/playlist/{playlist_id}"),
         picture=data.get("picture_medium") or None,
     )
+
+
+def from_timestamp(value: object) -> datetime | None:
+    """Convertit un horodatage Unix de Deezer en date, heure de Paris.
+
+    Args:
+        value (object): Le nombre de secondes depuis 1970 (nombre ou texte).
+
+    Returns:
+        datetime | None: La date, ou None si elle est absente ou illisible.
+    """
+    seconds = optional_int(value)
+    if not seconds:  # 0 : date inconnue côté Deezer
+        return None
+    return datetime.fromtimestamp(seconds, tz=PARIS)
+
+
+def optional_int(value: object) -> int | None:
+    """Lit un entier facultatif (nombre ou texte), tel que Deezer le renvoie.
+
+    Args:
+        value (object): La valeur brute.
+
+    Returns:
+        int | None: L'entier, ou None si la valeur est absente ou illisible.
+    """
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    text = str(value).strip()
+    return int(text) if text.lstrip("-").isdigit() else None
+
+
+def optional_bool(value: object) -> bool | None:
+    """Lit un booléen facultatif (``true``, ``1``, ``"0"``…), tel que Deezer le renvoie.
+
+    Args:
+        value (object): La valeur brute.
+
+    Returns:
+        bool | None: Le booléen, ou None si la valeur est absente ou illisible.
+    """
+    if isinstance(value, bool):
+        return value
+    number = optional_int(value)
+    return None if number is None else number != 0

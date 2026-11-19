@@ -39,7 +39,13 @@ Une ligne par piste :
 | `album`               | Album d'où provient la piste                     |
 | `duration_s`          | Durée en secondes                                |
 | `link`                | Lien Deezer de la piste                          |
+| `added_at`            | Date d'ajout à la playlist (heure de Paris)      |
+| `rank`                | Popularité Deezer (plus c'est haut, plus écouté) |
+| `explicit`            | Paroles explicites                               |
+| `isrc`                | Code ISRC de l'enregistrement                    |
 | `genre 1` … `genre 4` | Genres de l'album (colonnes vides si moins de 4) |
+
+Une valeur que Deezer ne fournit pas (par exemple via la passerelle `arl`) reste vide.
 
 ### Feuille `Statistiques`
 
@@ -48,11 +54,19 @@ Une ligne par piste :
   - nombre de pistes, d'artistes, d'albums et de genres uniques ;
   - durée totale et durée moyenne ;
   - piste la plus longue et piste la plus courte ;
+  - piste la plus populaire et la moins populaire (rang Deezer) ;
   - date de génération de l'export.
 - **Top artistes**, **Top albums**, **Top genres** : les 10 premiers de chaque classement, avec
   le nombre de pistes et la part correspondante. Deux albums homonymes d'artistes différents
   sont comptés séparément.
+- **Pistes ajoutées par mois** : nombre de pistes ajoutées à la playlist chaque mois.
 - **Graphique** : diagramme en barres des genres les plus représentés.
+
+### Export CSV
+
+Le CSV reprend les colonnes de la feuille `Playlist`, avec un en-tête : UTF-8 (avec BOM,
+pour qu'Excel reconnaisse les accents), séparateur `;`, dates au format
+`AAAA-MM-JJ HH:MM:SS`, `explicit` à `1` ou `0`.
 
 ## Prérequis
 
@@ -74,6 +88,8 @@ cp .env.example .env   # puis compléter les valeurs utiles
 ```bash
 uv run deezer-export 908622995
 uv run deezer-export https://www.deezer.com/fr/playlist/908622995 -o ma_playlist.xlsx
+uv run deezer-export 908622995 -o ma_playlist.csv     # CSV, d'après l'extension
+uv run deezer-export 908622995 --format csv           # output/playlist_<id>_<date>.csv
 uv run deezer-export                 # playlist lue dans DEEZER_PLAYLIST_ID
 uv run deezer-export --mine          # liste tes playlists (connexion requise)
 ```
@@ -87,6 +103,8 @@ Exportation de la playlist Deezer vers un fichier Excel…
   (`link.deezer.com/…`).
 - **Fichier de sortie** : par défaut `output/playlist_<id>_<date>.xlsx`, daté du jour (fuseau
   `Europe/Paris`). Le dossier est créé au besoin.
+- **Format** : `.csv` ou `.xlsx` d'après l'extension de `-o` ; `--format csv|xlsx` l'impose
+  (défaut : `xlsx`).
 - **Codes de sortie** :
   - 0 : succès ;
   - 1 : erreur Deezer ou référence invalide ;
@@ -174,7 +192,7 @@ uv run deezer-export-web          # http://127.0.0.1:8000 (HOST et PORT modifiab
 3. La page de résultat affiche :
    - les chiffres clés, la vue d'ensemble et les genres ;
    - les classements et la liste des pistes ;
-   - le bouton de téléchargement du classeur.
+   - les boutons de téléchargement du classeur et du CSV.
 
 Le résultat reste disponible 30 minutes, puis il est oublié. Une grande playlist prend
 environ une minute pour 500 albums distincts, à cause du quota Deezer.
