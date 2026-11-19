@@ -36,6 +36,7 @@ from deezer_export.stats import TOP_N, compute_stats, describe_track, format_dur
 from deezer_export.web.backend import DeezerBackend
 from deezer_export.web.config import Settings
 from deezer_export.web.jobs import JobManager, TooManyJobsError
+from deezer_export.web.logs import install_access_log_filter
 from deezer_export.web.sessions import COOKIE_NAME, DeezerAuth, Session, SessionStore
 
 if TYPE_CHECKING:
@@ -600,6 +601,7 @@ def create_app(
         FastAPI: L'application ASGI.
     """
     cfg = settings or Settings.from_env()
+    install_access_log_filter()  # le code OAuth du retour Deezer n'est pas journalisé
     ctx = Context(
         settings=cfg,
         deezer=backend or DeezerBackend(cfg),
