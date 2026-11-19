@@ -48,8 +48,10 @@ def test_playlist_tracks_follow_pagination(no_limit: RateLimiter) -> None:
             responses.matchers.query_param_matcher({"limit": "100", "index": "100"})
         ],
     )
-    tracks = client(no_limit).playlist_tracks(7)
+    pages: list[int] = []
+    tracks = client(no_limit).playlist_tracks(7, pages.append)
     assert len(tracks) == 103
+    assert pages == [100, 103]  # un rappel par page lue
     assert tracks[0].title == "Hey Jude (Remastered 2015)"
     assert tracks[0].album_id == 12047956
     assert tracks[0].duration == 429

@@ -40,16 +40,40 @@
 
   var url = progress.getAttribute('data-progress-url');
   var percent = progress.querySelector('[data-percent]');
+  var bar = progress.querySelector('[data-bar]');
   var fill = progress.querySelector('[data-fill]');
   var step = progress.querySelector('[data-step]');
   var count = progress.querySelector('[data-count]');
+  var announcer = progress.querySelector('[data-announce]');
   var failures = 0;
+  // Lecteurs d'écran : seuls les changements d'étape et les paliers de 25 % sont annoncés.
+  var announcedStep = step.textContent;
+  var announcedQuarter = Math.floor(Number(bar.getAttribute('aria-valuenow')) / 25);
+
+  function announce(state) {
+    var quarter = Math.floor(state.percent / 25);
+    var message = '';
+    if (state.step !== announcedStep) {
+      message = 'Étape : ' + state.step + ', ' + state.percent + ' %.';
+    } else if (quarter > announcedQuarter && state.percent < 100) {
+      message = state.percent + ' %.';
+    }
+    announcedStep = state.step;
+    announcedQuarter = Math.max(announcedQuarter, quarter);
+    if (message) announcer.textContent = message;
+  }
 
   function update(state) {
     percent.textContent = state.percent + ' %';
     fill.style.setProperty('--w', state.percent + '%');
+    bar.setAttribute('aria-valuenow', String(state.percent));
+    bar.setAttribute(
+      'aria-valuetext',
+      state.percent + ' %, ' + state.step + (state.count ? ', ' + state.count : '')
+    );
     step.textContent = state.step;
-    count.textContent = state.total ? state.done + ' / ' + state.total + ' albums' : '';
+    count.textContent = state.count;
+    announce(state);
   }
 
   function poll() {

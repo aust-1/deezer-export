@@ -13,13 +13,26 @@
 </section>
 
 <section class="container">
-  <div class="progress" data-progress-url="/exports/{{ job.id }}/etat" aria-live="polite">
-    <p class="progress__n" data-percent>{{ job.percent }} %</p>
-    <div class="progress__track" role="presentation">
+  {# Pas d'aria-live sur le bloc : il change chaque seconde. Le pourcentage se lit à la
+     demande sur la barre (role="progressbar") ; seuls les changements d'étape et les
+     paliers de 25 % sont annoncés, par la zone [data-announce] (voir app.js). #}
+  <div class="progress" data-progress-url="/exports/{{ job.id }}/etat">
+    <p class="progress__n" data-percent aria-hidden="true">{{ job.percent }} %</p>
+    <div
+      class="progress__track"
+      role="progressbar"
+      aria-label="Avancement de l'export"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="{{ job.percent }}"
+      aria-valuetext="{{ job.percent }} %, {{ job.step_label }}{% if job.count_label %}, {{ job.count_label }}{% endif %}"
+      data-bar
+    >
       <span class="progress__fill" data-fill style="--w: {{ job.percent }}%"></span>
     </div>
     <p class="cote"><span data-step>{{ job.step_label }}</span></p>
-    <p class="t-ui" data-count>{% if job.total %}{{ job.done }} / {{ job.total }} albums{% endif %}</p>
+    <p class="t-ui" data-count>{{ job.count_label }}</p>
+    <p class="visually-hidden" role="status" data-announce></p>
     <p class="hint">
       Deezer limite le rythme des requêtes : compte environ une minute pour 500 albums distincts.
       Tu peux laisser cet onglet ouvert, je recharge la page dès que c'est prêt.

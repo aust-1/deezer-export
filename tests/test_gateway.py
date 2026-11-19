@@ -79,8 +79,10 @@ def test_tracks_are_paged_and_mapped(no_limit: RateLimiter) -> None:
         },
         match=method("playlist.getSongs"),
     )
-    tracks = gw(no_limit).playlist_tracks(9)
+    pages: list[int] = []
+    tracks = gw(no_limit).playlist_tracks(9, pages.append)
     assert len(tracks) == 1001
+    assert pages == [1000, 1001]  # un rappel par page lue
     assert tracks[0].title == "Hey Jude (Remastered 2015)"
     assert tracks[-1].title == "Hey Jude"
     assert tracks[0].album_id == 12047956

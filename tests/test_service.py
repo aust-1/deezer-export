@@ -22,6 +22,7 @@ from deezer_export.service import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from deezer_export.models import PlaylistExport, PlaylistInfo, Track
@@ -83,7 +84,12 @@ class FakeSource:
         assert playlist_id == PLAYLIST.id
         return PLAYLIST
 
-    def playlist_tracks(self, playlist_id: int) -> list[Track]:
+    def playlist_tracks(
+        self, playlist_id: int, progress: Callable[[int], None] | None = None
+    ) -> list[Track]:
+        if progress is not None:  # deux pages, la seconde au-delà de nb_tracks
+            progress(len(self.tracks) // 2)
+            progress(len(self.tracks))
         return self.tracks
 
     def my_playlists(self) -> list[PlaylistInfo]:
@@ -105,6 +111,7 @@ def test_fetch_playlist_queries_each_album_once() -> None:
         make_track(2, album_id=1),
         make_track(3, album_id=2),
         make_track(4, album_id=0),
+        make_track(5, album_id=0),
     ]
     genres = FakeGenres()
     cache = GenreCache()
@@ -125,7 +132,13 @@ def test_fetch_playlist_queries_each_album_once() -> None:
     assert export.genres == {1: ("Genre 1",), 2: ("En cache",)}
     assert export.albums_queried == 2
     assert export.generated_at == now
-    assert steps[0] == ("playlist", 0, 0)
+    assert steps[:4] == [
+        ("playlist", 0, 0),
+        ("tracks", 0, 4),  # nb_tracks annoncé par Deezer
+        ("tracks", 2, 4),
+        ("tracks", 5, 5),  # une piste de plus qu'annoncé : le total suit
+    ]
+    assert steps[4] == ("albums", 0, 2)
     assert steps[-1] == ("albums", 2, 2)
     assert cache.get(1) == ("Genre 1",)
 

@@ -19,10 +19,12 @@ from deezer_export.deezer.errors import (
 from deezer_export.models import User
 from deezer_export.web.app import content_security_policy, create_app
 from deezer_export.web.config import Settings
-from deezer_export.web.jobs import JobManager, TooManyJobsError
+from deezer_export.web.jobs import Job, JobManager, TooManyJobsError
 from deezer_export.web.sessions import COOKIE_NAME, DeezerAuth, SessionStore
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from deezer_export.models import PlaylistExport
 
 
@@ -150,6 +152,10 @@ def test_progress_page_while_running(client: TestClient, backend: FakeBackend) -
     page = client.get(location)
     assert "Analyse" in page.text
     assert 'http-equiv="refresh"' in page.text
+    # Accessibilité : rien n'est relu en boucle, la barre se lit à la demande.
+    assert "aria-live" not in page.text
+    assert 'role="progressbar"' in page.text
+    assert 'role="status"' in page.text
     assert client.get(f"{location}/classeur.xlsx").status_code == 404
     release.append(True)
     assert wait_job(client, location)["status"] == "done"
@@ -370,3 +376,58 @@ def test_job_manager_limits(export: PlaylistExport) -> None:
     finally:
         release.append(True)
         jobs.shutdown()
+
+
+@pytest.mark.parametrize(
+    ("step", "done", "total", "percent", "count"),
+    [
+        ("queued", 0, 0, 0, ""),
+        ("playlist", 0, 0, 0, ""),
+        ("tracks", 0, 2140, 2, "0 / 2\u202f140 pistes"),
+        ("tracks", 300, 2140, 4, "300 / 2\u202f140 pistes"),
+        ("tracks", 2140, 2140, 20, "2\u202f140 / 2\u202f140 pistes"),
+        ("albums", 0, 49, 20, "0 / 49 albums"),
+        ("albums", 18, 49, 49, "18 / 49 albums"),
+        ("albums", 49, 49, 100, "49 / 49 albums"),
+    ],
+)
+def test_job_progress_spreads_tracks_and_albums(
+    step: str, done: int, total: int, percent: int, count: str
+) -> None:
+    job = Job(id="j", owner="o", playlist_id=1, status="running", step=step)
+    job.done, job.total = done, total
+    assert job.percent == percent
+    assert job.count_label == count
+
+
+def test_export_state_reports_track_count(
+    client: TestClient, backend: FakeBackend
+) -> None:
+    release: list[bool] = []
+
+    def reading_tracks(
+        playlist_id: int, auth: object, progress: Callable[[str, int, int], None]
+    ) -> PlaylistExport:
+        progress("tracks", 300, 2140)
+        while not release:
+            time.sleep(0.01)
+        return backend.export
+
+    backend.fetch = reading_tracks  # type: ignore[method-assign]
+    location = client.post(
+        "/exports", data={"csrf": csrf_of(client), "playlist": "1"}
+    ).headers["location"]
+    try:
+        deadline = time.monotonic() + 5
+        state = client.get(f"{location}/etat").json()
+        while state["step"] != "lecture des pistes" and time.monotonic() < deadline:
+            time.sleep(0.01)
+            state = client.get(f"{location}/etat").json()
+        assert state["count"] == "300 / 2\u202f140 pistes"
+        assert state["percent"] == 4
+        page = client.get(location).text
+        assert "300 / 2\u202f140 pistes" in page
+        assert 'aria-valuenow="4"' in page
+    finally:
+        release.append(True)
+    assert wait_job(client, location)["status"] == "done"

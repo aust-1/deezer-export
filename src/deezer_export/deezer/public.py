@@ -140,11 +140,17 @@ class PublicClient:
             QUOTA_MESSAGE
         )  # pragma: no cover - la boucle renvoie ou lève
 
-    def paginate(self, path: str) -> Iterator[dict[str, Any]]:
+    def paginate(
+        self,
+        path: str,
+        on_page: Callable[[int], None] | None = None,
+    ) -> Iterator[dict[str, Any]]:
         """Parcourt toutes les pages d'une collection (``data`` + ``next``).
 
         Args:
             path (str): Chemin de la collection.
+            on_page (Callable[[int], None] | None): Rappel appelé après chaque page
+                lue, avec le nombre d'éléments lus jusque-là.
 
         Yields:
             dict[str, Any]: Chaque élément de la collection, dans l'ordre.
@@ -153,8 +159,10 @@ class PublicClient:
         while True:
             page = self.get(path, {"limit": PAGE_SIZE, "index": index})
             items = page.get("data", [])
-            yield from items
             index += len(items)
+            if on_page is not None:
+                on_page(index)
+            yield from items
             if not items or not page.get("next"):
                 return
 
@@ -169,18 +177,23 @@ class PublicClient:
         """
         return playlist_from_api(self.get(f"/playlist/{playlist_id}"))
 
-    def playlist_tracks(self, playlist_id: int) -> list[Track]:
-        """Lit toutes les pistes d'une playlist (pagination automatique).
+    def playlist_tracks(
+        self,
+        playlist_id: int,
+        progress: Callable[[int], None] | None = None,
+    ) -> list[Track]:
+        """Lit toutes les pistes d'une playlist (pagination automatique, par 100).
 
         Args:
             playlist_id (int): L'ID de la playlist.
+            progress (Callable[[int], None] | None): Rappel appelé après chaque page,
+                avec le nombre de pistes lues jusque-là.
 
         Returns:
             list[Track]: Les pistes, dans l'ordre de la playlist.
         """
-        return [
-            track_from_api(t) for t in self.paginate(f"/playlist/{playlist_id}/tracks")
-        ]
+        pages = self.paginate(f"/playlist/{playlist_id}/tracks", on_page=progress)
+        return [track_from_api(t) for t in pages]
 
     def album_genres(self, album_id: int) -> tuple[str, ...]:
         """Lit les genres d'un album.
