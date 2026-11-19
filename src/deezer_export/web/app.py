@@ -26,6 +26,8 @@ from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException
 
 from deezer_export._version import __version__
+from deezer_export.csv_export import MEDIA_TYPE as CSV_MEDIA_TYPE
+from deezer_export.csv_export import csv_bytes
 from deezer_export.deezer.errors import AuthenticationError, DeezerError
 from deezer_export.excel import workbook_bytes
 from deezer_export.service import (
@@ -403,6 +405,35 @@ def download(request: Request, job_id: str) -> Response:
 
     Returns:
         Response: Le fichier ``.xlsx``.
+    """
+    export = _finished_export(request, job_id)
+    return _attachment(export, "xlsx", workbook_bytes(export), XLSX)
+
+
+@router.get("/exports/{job_id}/pistes.csv")
+def download_csv(request: Request, job_id: str) -> Response:
+    """Télécharge les pistes d'un export terminé au format CSV.
+
+    Args:
+        request (Request): La requête.
+        job_id (str): L'identifiant de l'export.
+
+    Returns:
+        Response: Le fichier ``.csv`` (UTF-8, séparateur ``;``).
+    """
+    export = _finished_export(request, job_id)
+    return _attachment(export, "csv", csv_bytes(export), CSV_MEDIA_TYPE)
+
+
+def _finished_export(request: Request, job_id: str) -> PlaylistExport:
+    """Renvoie le résultat d'un export terminé de la session.
+
+    Args:
+        request (Request): La requête.
+        job_id (str): L'identifiant de l'export.
+
+    Returns:
+        PlaylistExport: Le résultat.
 
     Raises:
         HTTPException: 404 si l'export n'est pas (encore) disponible.
@@ -410,15 +441,18 @@ def download(request: Request, job_id: str) -> Response:
     job = _owned_job(request, job_id)
     if job.result is None:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND)
-    export = job.result
+    return job.result
+
+
+def _attachment(
+    export: PlaylistExport, extension: str, content: bytes, media_type: str
+) -> Response:
     date = export.generated_at.date().isoformat()
-    ascii_name = f"playlist_{export.playlist.id}_{date}.xlsx"
-    utf8_name = quote(f"{export.playlist.title} {date}.xlsx")
+    ascii_name = f"playlist_{export.playlist.id}_{date}.{extension}"
+    utf8_name = quote(f"{export.playlist.title} {date}.{extension}")
     disposition = f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{utf8_name}"
     return Response(
-        workbook_bytes(export),
-        media_type=XLSX,
-        headers={"Content-Disposition": disposition},
+        content, media_type=media_type, headers={"Content-Disposition": disposition}
     )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 import pytest
 import responses
@@ -14,8 +15,9 @@ from deezer_export.deezer.errors import (
     PrivatePlaylistError,
     QuotaExceededError,
 )
-from deezer_export.deezer.gateway import GATEWAY, GatewayClient
+from deezer_export.deezer.gateway import GATEWAY, GatewayClient, track_from_gateway
 from deezer_export.deezer.http import RateLimiter
+from deezer_export.deezer.public import PARIS
 
 ARL = "f" * 192
 USER_DATA = {
@@ -30,6 +32,10 @@ SONG = {
     "ALB_ID": "12047956",
     "ALB_TITLE": "1 (Remastered 2015)",
     "DURATION": "429",
+    "DATE_ADD": 1700000000,
+    "RANK_SNG": "912345",
+    "EXPLICIT_LYRICS": "1",
+    "ISRC": "GBAYE0601690",
 }
 
 
@@ -85,6 +91,12 @@ def test_tracks_are_paged_and_mapped(no_limit: RateLimiter) -> None:
     assert tracks[-1].title == "Hey Jude"
     assert tracks[0].album_id == 12047956
     assert tracks[0].link == "https://www.deezer.com/track/116348632"
+    assert tracks[0].added_at == datetime(2023, 11, 14, 23, 13, 20, tzinfo=PARIS)
+    assert (tracks[0].rank, tracks[0].explicit, tracks[0].isrc) == (
+        912345,
+        True,
+        "GBAYE0601690",
+    )
     starts = [
         json.loads(c.request.body or b"{}").get("start") for c in responses.calls[1:]
     ]
@@ -213,3 +225,22 @@ def test_cdn_block_and_unreadable_answers(no_limit: RateLimiter) -> None:
 
 def test_repr_never_shows_the_cookie(no_limit: RateLimiter) -> None:
     assert ARL not in repr(gw(no_limit))
+
+
+def test_gateway_optional_fields() -> None:
+    bare = {
+        k: v
+        for k, v in SONG.items()
+        if k not in {"DATE_ADD", "RANK_SNG", "EXPLICIT_LYRICS", "ISRC"}
+    }
+    track = track_from_gateway(bare)
+    assert (track.added_at, track.rank, track.explicit, track.isrc) == (
+        None,
+        None,
+        None,
+        None,
+    )
+    for status, explicit in ((1, True), ("3", False)):
+        content = {"EXPLICIT_LYRICS_STATUS": status}
+        song = dict(bare, EXPLICIT_TRACK_CONTENT=content)
+        assert track_from_gateway(song).explicit is explicit

@@ -15,6 +15,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 from deezer_export.stats import compute_stats, describe_track, format_duration
+from deezer_export.table import ADDED_AT_COLUMN, PLAYLIST_HEADER, playlist_rows
 
 if TYPE_CHECKING:
     from openpyxl.worksheet.worksheet import Worksheet
@@ -23,8 +24,9 @@ if TYPE_CHECKING:
     from deezer_export.stats import PlaylistStats, RankingRow
 
 ACCENT_COLOR = "4472C4"  # bleu du style de tableau TableStyleMedium2
-GENRE_COLUMNS = 4
+DATE_FORMAT = "dd/mm/yyyy hh:mm"
 MAX_COLUMN_WIDTH = 60
+MONTHS_COLUMN = 13  # tableau « Pistes ajoutées par mois », à droite des classements
 
 
 def build_workbook(export: PlaylistExport) -> Workbook:
@@ -76,13 +78,14 @@ def workbook_bytes(export: PlaylistExport) -> bytes:
 
 
 def _build_playlist_sheet(ws: Worksheet, export: PlaylistExport) -> None:
-    header = ["title", "artist", "album", "duration_s", "link"]
-    header += [f"genre {i}" for i in range(1, GENRE_COLUMNS + 1)]
+    header = PLAYLIST_HEADER
     ws.append(header)
-
-    for t in export.tracks:
-        genres = [*export.genres_of(t), *[""] * GENRE_COLUMNS][:GENRE_COLUMNS]
-        ws.append([t.title, t.artist, t.album, t.duration, t.link, *genres])
+    for row in playlist_rows(export):
+        ws.append(row)
+    for (cell,) in ws.iter_rows(
+        min_row=2, min_col=ADDED_AT_COLUMN, max_col=ADDED_AT_COLUMN
+    ):
+        cell.number_format = DATE_FORMAT
 
     _style_header(ws, row=1, col=1, n_cols=len(header))
     ws.freeze_panes = "A2"
@@ -108,6 +111,8 @@ def _build_stats_sheet(
         ("Durée moyenne", format_duration(stats.average_duration)),
         ("Piste la plus longue", describe_track(stats.longest)),
         ("Piste la plus courte", describe_track(stats.shortest)),
+        ("Piste la plus populaire", describe_track(stats.most_popular)),
+        ("Piste la moins populaire", describe_track(stats.least_popular)),
         ("Export généré le", export.generated_at.strftime("%d/%m/%Y %H:%M")),
     ]
     _write_overview(ws, overview)
@@ -123,10 +128,12 @@ def _build_stats_sheet(
         for col, title, name, label, rows in rankings
     ]
 
+    last_rows.append(_write_months(ws, MONTHS_COLUMN, row, stats.added_by_month))
+
     _add_genre_chart(
         ws, row=row + 1, last_row=last_rows[2], anchor=f"A{max(last_rows) + 3}"
     )
-    _autofit(ws, n_cols=11)
+    _autofit(ws, n_cols=MONTHS_COLUMN + 1)
 
 
 def _write_overview(ws: Worksheet, rows: list[tuple[str, str | int]]) -> None:
@@ -179,6 +186,39 @@ def _write_ranking(
         first, last = get_column_letter(col), get_column_letter(col + 2)
         _add_table(ws, name, f"{first}{row + 1}:{last}{last_row}")
 
+    return last_row
+
+
+def _write_months(
+    ws: Worksheet,
+    col: int,
+    row: int,
+    months: tuple[tuple[str, int], ...],
+) -> int:
+    """Écrit le tableau « Pistes ajoutées par mois » (mois ``AAAA-MM``, pistes).
+
+    Args:
+        ws (Worksheet): La feuille à remplir.
+        col (int): L'index (1-based) de la première colonne du tableau.
+        row (int): L'index (1-based) de la ligne du titre.
+        months (tuple[tuple[str, int], ...]): Les mois, dans l'ordre chronologique.
+
+    Returns:
+        int: L'index de la dernière ligne écrite.
+    """
+    title = ws.cell(row=row, column=col, value="Pistes ajoutées par mois")
+    title.font = Font(bold=True, size=12)
+    ws.cell(row=row + 1, column=col, value="mois")
+    ws.cell(row=row + 1, column=col + 1, value="pistes")
+    for i, (month, count) in enumerate(months, start=1):
+        ws.cell(row=row + 1 + i, column=col, value=month)
+        ws.cell(row=row + 1 + i, column=col + 1, value=count)
+
+    last_row = row + 1 + len(months)
+    if months:
+        _style_header(ws, row=row + 1, col=col, n_cols=2)
+        first, last = get_column_letter(col), get_column_letter(col + 1)
+        _add_table(ws, "Ajouts_par_mois", f"{first}{row + 1}:{last}{last_row}")
     return last_row
 
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import pytest
 import requests
 import responses
@@ -14,7 +16,14 @@ from deezer_export.deezer.errors import (
     QuotaExceededError,
 )
 from deezer_export.deezer.http import RateLimiter
-from deezer_export.deezer.public import API, PublicClient
+from deezer_export.deezer.public import (
+    API,
+    PARIS,
+    PublicClient,
+    optional_bool,
+    optional_int,
+    track_from_api,
+)
 
 TRACK = {
     "id": 116348632,
@@ -23,6 +32,10 @@ TRACK = {
     "link": "https://www.deezer.com/track/116348632",
     "artist": {"name": "The Beatles"},
     "album": {"id": 12047956, "title": "1 (Remastered 2015)"},
+    "time_add": 1700000000,
+    "rank": 912345,
+    "explicit_lyrics": False,
+    "isrc": "GBAYE0601690",
 }
 
 
@@ -53,6 +66,39 @@ def test_playlist_tracks_follow_pagination(no_limit: RateLimiter) -> None:
     assert tracks[0].title == "Hey Jude (Remastered 2015)"
     assert tracks[0].album_id == 12047956
     assert tracks[0].duration == 429
+    assert tracks[0].added_at == datetime(2023, 11, 14, 23, 13, 20, tzinfo=PARIS)
+    assert (tracks[0].rank, tracks[0].explicit, tracks[0].isrc) == (
+        912345,
+        False,
+        "GBAYE0601690",
+    )
+
+
+def test_optional_track_fields_may_be_missing() -> None:
+    bare = {k: v for k, v in TRACK.items() if k not in {"time_add", "rank", "isrc"}}
+    track = track_from_api(dict(bare, explicit_lyrics=None, time_add=0))
+    assert (track.added_at, track.rank, track.explicit, track.isrc) == (
+        None,
+        None,
+        None,
+        None,
+    )
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(1, 1), ("42", 42), (" -3 ", -3), (True, None), (None, None), ("abc", None)],
+)
+def test_optional_int(value: object, expected: int | None) -> None:
+    assert optional_int(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [(True, True), (False, False), ("1", True), (0, False), ("", None), (None, None)],
+)
+def test_optional_bool(value: object, *, expected: bool | None) -> None:
+    assert optional_bool(value) is expected
 
 
 @responses.activate
