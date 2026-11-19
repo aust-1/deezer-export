@@ -186,6 +186,8 @@ environ une minute pour 500 albums distincts, à cause du quota Deezer.
   les statistiques Rybbit si elles sont configurées.
 - **Formulaires** : un jeton CSRF par session.
 - **Exports** : chacun n'est visible que par la session qui l'a lancé.
+- **Journaux** : le journal d'accès n'écrit que le chemin, sans sa chaîne de requête : le
+  code d'autorisation OAuth du retour Deezer n'y apparaît jamais.
 - **Limites** : un export actif par session, et `MAX_PENDING_JOBS` exports en cours ou en
   attente au plus.
 - **En-têtes** : `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`,
