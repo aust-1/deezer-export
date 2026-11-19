@@ -37,6 +37,7 @@ from deezer_export.web.backend import DeezerBackend
 from deezer_export.web.config import Settings
 from deezer_export.web.jobs import JobManager, TooManyJobsError
 from deezer_export.web.sessions import COOKIE_NAME, DeezerAuth, Session, SessionStore
+from deezer_export.web.tracklist import track_page
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -347,12 +348,22 @@ def _owned_job(request: Request, job_id: str) -> Job:
 
 
 @router.get("/exports/{job_id}", response_class=HTMLResponse)
-def show_export(request: Request, job_id: str) -> HTMLResponse:
+def show_export(
+    request: Request,
+    job_id: str,
+    page: str = "1",
+    q: str = "",
+    tri: str = "num",
+) -> HTMLResponse:
     """Affiche l'avancement d'un export, puis ses résultats.
 
     Args:
         request (Request): La requête.
         job_id (str): L'identifiant de l'export.
+        page (str): La page de la liste des pistes.
+        q (str): Le filtre de la liste des pistes (tronqué à 100 caractères).
+        tri (str): Le tri de la liste des pistes (``num``, ``-num``, ``duree``,
+            ``-duree``).
 
     Returns:
         HTMLResponse: La page d'avancement, de résultats ou d'erreur.
@@ -368,6 +379,7 @@ def show_export(request: Request, job_id: str) -> HTMLResponse:
         "export": job.result,
         "stats": compute_stats(job.result),
         "top_n": TOP_N,
+        "tracks": track_page(job.result, page=page, query=q, sort=tri),
     }
     return render(request, "result.html", context)
 
