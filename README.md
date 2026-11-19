@@ -252,8 +252,20 @@ uv run pyright
 uv run pylint src                 # analyse statique (consultative)
 ```
 
-La CI (`.github/workflows/ci.yml`) lance tout cela, puis construit l'image Docker et vérifie
-qu'elle démarre saine, en lecture seule comme sur le VPS.
+Tests dans un vrai navigateur (Playwright, Chromium) : export jusqu'à la page de résultats,
+téléchargement du classeur, thème clair / sombre mémorisé, mise en page mobile, aucune erreur
+de console ni violation CSP. Deezer est simulé et toute requête vers un autre hôte que le
+serveur de test est bloquée.
+
+```bash
+uv sync --group e2e
+uv run playwright install chromium   # --with-deps sur une machine sans les bibliothèques
+uv run pytest -m e2e --no-cov        # captures dans test-results/screenshots
+```
+
+La CI (`.github/workflows/ci.yml`) lance tout cela (les tests navigateur dans un job dédié,
+qui garde les captures clair / sombre / mobile comme artefacts), puis construit l'image
+Docker et vérifie qu'elle démarre saine, en lecture seule comme sur le VPS.
 
 ### Structure
 
