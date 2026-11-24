@@ -1,0 +1,7 @@
+# Routage déclaré côté dépôt opt (reverse proxy Caddy partagé du VPS, TLS automatique).
+# Les en-têtes de sécurité (CSP, HSTS…) sont posés par l'application elle-même.
+
+deezer.eliott-roussille.fr {
+	encode zstd gzip
+	reverse_proxy deezer-export-web:8000
+}

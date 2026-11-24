@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block main %}
+<section class="hero dots marks" aria-labelledby="titre">
+  <div class="container hero__inner">
+    <p class="t-label">Outil · playlist Deezer → classeur Excel</p>
+    <h1 id="titre" class="t-display">Deezer<br />Export<span class="cursor" aria-hidden="true"></span></h1>
+    <p class="cote cote--accent"><span>.xlsx · statistiques · publiques et privées</span></p>
+  </div>
+</section>
+
+<section id="exporter" class="container" aria-label="Exporter une playlist">
+  <div class="split">
+    <div class="split__main block block--ink">
+      <p class="t-hook">Je transforme une playlist Deezer en classeur Excel, statistiques comprises.</p>
+      <form method="post" action="/exports">
+        <input type="hidden" name="csrf" value="{{ csrf }}" />
+        <div class="form-row">
+          <label class="field">
+            <span class="t-label">ID ou lien de la playlist</span>
+            <input
+              name="playlist"
+              required
+              maxlength="300"
+              inputmode="url"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="https://www.deezer.com/fr/playlist/908622995"
+              value="{{ playlist_value or '' }}"
+            />
+          </label>
+          <button type="submit" class="cta">Analyser →</button>
+        </div>
+      </form>
+      {% if flash %}<p class="flash" role="alert">{{ flash }}</p>{% endif %}
+    </div>
+
+    <dl class="split__side block block--blue facts">
+      <div>
+        <dt class="t-label">Feuilles</dt>
+        <dd>Playlist, Statistiques</dd>
+      </div>
+      <div>
+        <dt class="t-label">Par piste</dt>
+        <dd>titre, artiste, album, durée, genres</dd>
+      </div>
+      <div>
+        <dt class="t-label">Classements</dt>
+        <dd>artistes, albums, genres</dd>
+      </div>
+      <div>
+        <dt class="t-label">Accès</dt>
+        <dd>{% if auth %}connecté · {{ auth.user.name or 'compte Deezer' }}{% else %}playlists publiques{% endif %}</dd>
+      </div>
+    </dl>
+  </div>
+</section>
+
+{% if auth %}
+<section id="mes-playlists" class="section container" aria-labelledby="titre-playlists">
+  <div class="section__head">
+    <h2 id="titre-playlists" class="t-section">Mes playlists</h2>
+    <p class="t-label">{{ '%02d' % (playlists|length) }} entrées</p>
+  </div>
+  {% if playlists_error %}
+  <p class="flash" role="alert">{{ playlists_error }}</p>
+  {% elif not playlists %}
+  <p class="t-lead">Je ne trouve aucune playlist sur ce compte.</p>
+  {% else %}
+  <ul class="cards">
+    {% for p in playlists %}
+    <li class="card">
+      {% if p.picture %}
+      <img class="card__cover no-grain" src="{{ p.picture }}" alt="" width="250" height="250" loading="lazy" />
+      {% else %}
+      <div class="card__cover" aria-hidden="true"></div>
+      {% endif %}
+      <p class="t-label">{{ 'publique' if p.public else 'privée' }} · {{ p.nb_tracks }} pistes</p>
+      <h3 class="card__title">{{ p.title }}</h3>
+      <form method="post" action="/exports">
+        <input type="hidden" name="csrf" value="{{ csrf }}" />
+        <input type="hidden" name="playlist" value="{{ p.id }}" />
+        <button type="submit" class="cta cta--block">Exporter <span aria-hidden="true">→</span></button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% else %}
+<section id="connexion" class="section container" aria-labelledby="titre-connexion">
+  <div class="section__head">
+    <h2 id="titre-connexion" class="t-section">Connexion</h2>
+    <p class="t-label">playlists privées</p>
+  </div>
+  <p id="mes-playlists" class="t-lead">
+    Une playlist privée n'est lisible qu'avec ton compte. Je garde l'accès en mémoire pendant la
+    session, jamais sur disque, et je l'oublie à la déconnexion.
+  </p>
+  {% if flash_login %}<p class="flash" role="alert">{{ flash_login }}</p>{% endif %}
+  <div class="login {% if settings.oauth_enabled and settings.arl_login %}login--two{% endif %} login--spaced">
+    {% if settings.oauth_enabled %}
+    <div class="block block--surface">
+      <p class="t-label">Recommandé</p>
+      <h3 class="t-title block__title">Se connecter avec Deezer</h3>
+      <p class="hint">
+        Deezer me demande ton autorisation et me renvoie un jeton de lecture. Je ne vois jamais ton
+        mot de passe.
+      </p>
+      <p class="block__action"><a class="cta" href="/connexion/deezer">Autoriser l'accès →</a></p>
+    </div>
+    {% endif %}
+    {% if settings.arl_login %}
+    <div class="block block--surface">
+      <p class="t-label">{% if settings.oauth_enabled %}Alternative{% else %}Cookie de session{% endif %}</p>
+      <h3 class="t-title block__title">Coller mon cookie <span class="t-mono">arl</span></h3>
+      <p class="hint">
+        Deezer n'accepte plus de nouvelles applications : ce cookie de session est le seul autre
+        accès à tes playlists privées. Il donne accès à tout ton compte. Je ne m'en sers que pour
+        lire tes playlists, et je ne le partage avec personne d'autre que Deezer.
+      </p>
+      <form method="post" action="/connexion/arl" autocomplete="off">
+        <input type="hidden" name="csrf" value="{{ csrf }}" />
+        <div class="form-row">
+          <label class="field">
+            <span class="t-label">Valeur du cookie arl</span>
+            <input name="arl" type="password" required minlength="32" maxlength="512" spellcheck="false" />
+          </label>
+          <button type="submit" class="cta">Se connecter →</button>
+        </div>
+      </form>
+      <details>
+        <summary>Où trouver mon cookie arl ?</summary>
+        <ol>
+          <li>Ouvre <a href="https://www.deezer.com">deezer.com</a> et connecte-toi.</li>
+          <li>Ouvre les outils de développement (<code>F12</code>), onglet « Application » (Chrome) ou « Stockage » (Firefox).</li>
+          <li>Dans « Cookies » → <code>https://www.deezer.com</code>, copie la valeur de <code>arl</code>.</li>
+          <li>Pour révoquer l'accès plus tard : déconnecte-toi de Deezer sur tous les appareils.</li>
+        </ol>
+      </details>
+    </div>
+    {% endif %}
+    {% if not settings.oauth_enabled and not settings.arl_login %}
+    <p class="hint">La connexion est désactivée sur ce serveur : seules les playlists publiques sont exportables.</p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<section class="section container" aria-labelledby="titre-etapes">
+  <div class="section__head">
+    <h2 id="titre-etapes" class="t-section">Comment</h2>
+    <p class="t-label">03 étapes</p>
+  </div>
+  <ol class="steps">
+    <li>
+      <span class="steps__n">1</span>
+      <strong>Je lis la playlist</strong>
+      <p>Toutes les pistes, page par page, via l'API Deezer.</p>
+    </li>
+    <li>
+      <span class="steps__n">2</span>
+      <strong>J'interroge chaque album</strong>
+      <p>Une requête par album distinct pour ses genres, au rythme que Deezer autorise (≈ 9 par seconde).</p>
+    </li>
+    <li>
+      <span class="steps__n">3</span>
+      <strong>Je calcule et j'assemble</strong>
+      <p>Statistiques à l'écran, classeur <span class="t-mono">.xlsx</span> à télécharger. Rien n'est conservé au-delà de 30 minutes.</p>
+    </li>
+  </ol>
+</section>
+{% endblock %}

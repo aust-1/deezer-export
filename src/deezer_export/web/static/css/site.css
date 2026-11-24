@@ -1,0 +1,816 @@
+/* Deezer Export — charte graphique ER_ v2 (rév. 2.0, nov. 2026).
+   Tokens, échelle typographique et grain repris du portfolio (aust-1/portfolio). */
+
+/* --- Polices auto-hébergées (sous-ensemble latin, OFL : fonts/OFL.txt) --------------------- */
+@font-face {
+  font-family: 'Inter Tight';
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/inter-tight-latin-700-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter Tight';
+  font-weight: 900;
+  font-display: swap;
+  src: url('../fonts/inter-tight-latin-900-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/inter-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/inter-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-weight: 500;
+  font-display: swap;
+  src: url('../fonts/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-weight: 800;
+  font-display: swap;
+  src: url('../fonts/jetbrains-mono-latin-800-normal.woff2') format('woff2');
+}
+
+/* --- Tokens (charte p. 09, valeurs exactes) ----------------------------------------------- */
+:root {
+  color-scheme: light;
+  --er-bg: #e7e5df;
+  --er-ink: #0b0c0e;
+  --er-text: #2e3138;
+  --er-muted: #4a4d55;
+  --er-surface: #d6d3cb;
+  --er-dot: #c9c5bb;
+  --er-signal: #ff5a1f;
+  --er-signal-text: #b53c0b;
+  --er-blue: #2b3bd6;
+  --er-grain-opacity: 0.22;
+  --er-on-signal: #0b0c0e;
+  --er-on-blue: #e7e5df;
+  --er-rule: color-mix(in srgb, var(--er-ink) 22%, transparent);
+
+  --font-display: 'Inter Tight', system-ui, sans-serif;
+  --font-text: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Grille : conteneur 1440, marges 72, 12 colonnes, gouttière 16 (charte p. 06). */
+  --container: 1440px;
+  --margin: clamp(16px, 5vw, 72px);
+  --gutter: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --er-bg: #0e0f12;
+    --er-ink: #eeece6;
+    --er-text: #c4c6cb;
+    --er-muted: #a2a5ad;
+    --er-surface: #1c1e23;
+    --er-dot: #24262c;
+    --er-signal: #ff6a2e;
+    --er-signal-text: #ff8a57;
+    --er-blue: #3646e8;
+    --er-grain-opacity: 0.17;
+    --er-on-signal: #0e0f12;
+    --er-on-blue: #eeece6;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --er-bg: #0e0f12;
+  --er-ink: #eeece6;
+  --er-text: #c4c6cb;
+  --er-muted: #a2a5ad;
+  --er-surface: #1c1e23;
+  --er-dot: #24262c;
+  --er-signal: #ff6a2e;
+  --er-signal-text: #ff8a57;
+  --er-blue: #3646e8;
+  --er-grain-opacity: 0.17;
+  --er-on-signal: #0e0f12;
+  --er-on-blue: #eeece6;
+}
+
+/* --- Échelle typographique (charte p. 03) ------------------------------------------------- */
+.t-display {
+  font: 900 clamp(64px, 12.2vw, 176px) / 0.84 var(--font-display);
+  letter-spacing: -0.06em;
+  color: var(--er-ink);
+}
+.t-section {
+  font: 900 clamp(48px, 7vw, 96px) / 0.82 var(--font-display);
+  letter-spacing: -0.05em;
+  color: var(--er-ink);
+}
+.t-title {
+  font: 900 clamp(22px, 2.6vw, 36px) / 1 var(--font-display);
+  letter-spacing: -0.04em;
+  color: var(--er-ink);
+}
+.t-hook {
+  font: 700 clamp(26px, 2.7vw, 38px) / 1.08 var(--font-display);
+  letter-spacing: -0.03em;
+}
+.t-lead {
+  font: 500 clamp(19px, 1.6vw, 23px) / 1.45 var(--font-text);
+  color: var(--er-text);
+}
+.t-ui {
+  font: 500 15px / 1.2 var(--font-mono);
+}
+.t-label {
+  font: 500 12px / 1.3 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--er-muted);
+}
+.t-mono {
+  font-family: var(--font-mono);
+}
+.dot {
+  color: var(--er-signal);
+}
+
+/* --- Base -------------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--er-bg);
+  color: var(--er-text);
+  font: 400 18px / 1.7 var(--font-text);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+main {
+  flex: 1;
+}
+
+/* Grain : tuile 256 px sur tout l'écran, par-dessus, sans capter les clics (charte p. 04). */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background: url('../grain.png') repeat;
+  background-size: 256px 256px;
+  opacity: var(--er-grain-opacity);
+  mix-blend-mode: multiply;
+}
+:root[data-theme='dark'] body::after {
+  mix-blend-mode: screen;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) body::after {
+    mix-blend-mode: screen;
+  }
+}
+/* Images au-dessus du grain : jamais granuleuses. */
+.no-grain {
+  position: relative;
+  z-index: 51;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol,
+dl,
+dd,
+figure {
+  margin: 0;
+}
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+a {
+  color: var(--er-signal-text);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+a:hover {
+  color: var(--er-ink);
+}
+:focus-visible {
+  outline: 3px solid var(--er-signal);
+  outline-offset: 3px;
+}
+::selection {
+  background: var(--er-signal);
+  color: var(--er-on-signal);
+}
+.container {
+  width: 100%;
+  max-width: var(--container);
+  margin-inline: auto;
+  padding-inline: var(--margin);
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.js-only {
+  display: none;
+}
+.js .js-only {
+  display: revert;
+}
+
+/* --- Boutons : l'orange pour agir, texte encre (charte p. 09) ------------------------------ */
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--er-signal);
+  color: var(--er-on-signal);
+  font: 500 15px / 1 var(--font-mono);
+  text-decoration: none;
+  border: 0;
+  cursor: pointer;
+}
+.cta:hover {
+  color: var(--er-on-signal);
+  background: color-mix(in srgb, var(--er-signal) 85%, var(--er-ink));
+}
+.cta--block {
+  width: 100%;
+}
+.link-mono {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 500 15px / 1 var(--font-mono);
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.link-mono:hover {
+  color: var(--er-signal-text);
+}
+
+/* --- Navigation -------------------------------------------------------------------------- */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--er-bg);
+  border-bottom: 2px solid var(--er-ink);
+}
+.nav__inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 64px;
+}
+.monogram {
+  font: 800 22px / 1 var(--font-mono);
+  color: var(--er-ink);
+  text-decoration: none;
+  letter-spacing: 0;
+}
+.monogram span {
+  color: var(--er-signal);
+}
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-left: auto;
+}
+.nav__links a,
+.nav__links button:not(.cta) {
+  color: var(--er-ink);
+  text-decoration: none;
+}
+.nav__links a:hover,
+.nav__links button:not(.cta):hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+.nav form {
+  margin: 0;
+}
+@media (max-width: 720px) {
+  .nav__inner {
+    gap: 12px;
+  }
+  .nav__links {
+    gap: 14px;
+  }
+  .nav__hide-sm {
+    display: none;
+  }
+}
+
+/* --- Motifs (charte p. 05) --------------------------------------------------------------- */
+/* M4 · Points : pas de 18 px, point de 1,4 px. Derrière le titre, jamais sous du texte courant. */
+.dots {
+  background-image: radial-gradient(circle, var(--er-dot) 0.7px, transparent 0.9px);
+  background-size: 18px 18px;
+  background-position: 9px 9px;
+}
+/* M12 · Repères : croix de 24 px, trait 2 px. Un seul jeu par écran. */
+.marks {
+  position: relative;
+}
+.marks::before,
+.marks::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background:
+    linear-gradient(var(--er-ink), var(--er-ink)) center / 2px 100% no-repeat,
+    linear-gradient(var(--er-ink), var(--er-ink)) center / 100% 2px no-repeat;
+}
+.marks::before {
+  top: 16px;
+  left: 16px;
+}
+.marks::after {
+  right: 16px;
+  bottom: 16px;
+}
+@media (max-width: 720px) {
+  .marks::before,
+  .marks::after {
+    width: 16px;
+    height: 16px;
+  }
+  .marks::before {
+    top: 8px;
+    left: 8px;
+  }
+  .marks::after {
+    right: 8px;
+    bottom: 8px;
+  }
+}
+/* M8 · Cotes : trait 1,5 px, butées 2 px, libellé en mono. */
+.cote {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 14px;
+  border-inline: 2px solid currentColor;
+  color: var(--er-ink);
+  font: 500 12px / 1 var(--font-mono);
+  white-space: nowrap;
+}
+.cote::before,
+.cote::after {
+  content: '';
+  flex: 1;
+  height: 1.5px;
+  background: currentColor;
+}
+.cote--accent span {
+  color: var(--er-signal-text);
+}
+/* Le « _ » de signature, en aplat orange. */
+.cursor {
+  display: inline-block;
+  width: 0.42em;
+  height: 0.11em;
+  margin-left: 0.04em;
+  background: var(--er-signal);
+  vertical-align: baseline;
+}
+
+/* --- Hero -------------------------------------------------------------------------------- */
+.hero {
+  padding-block: clamp(40px, 7vw, 88px) clamp(28px, 4vw, 48px);
+}
+.hero__inner {
+  display: grid;
+  gap: 20px;
+}
+.hero .cote {
+  max-width: 34rem;
+  /* Les jambages du titre (p, q…) débordent de l'interlignage serré de 0,84. */
+  margin-top: clamp(10px, 2.4vw, 34px);
+}
+.hero--compact .t-display {
+  font-size: clamp(48px, 8vw, 120px);
+}
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  color: var(--er-muted);
+}
+.crumbs a {
+  color: inherit;
+}
+
+/* --- Aplats ------------------------------------------------------------------------------ */
+.split {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--gutter);
+}
+.split > * {
+  grid-column: span 12;
+}
+@media (min-width: 900px) {
+  .split__main {
+    grid-column: span 7;
+  }
+  .split__side {
+    grid-column: span 5;
+  }
+}
+/* « Des aplats, pas des cadres » : en sombre, les blocs encre deviennent papier. */
+.block {
+  padding: clamp(24px, 3vw, 40px);
+}
+.block--ink {
+  background: var(--er-ink);
+  color: var(--er-bg);
+}
+.block--ink .t-hook,
+.block--ink .t-label {
+  color: var(--er-bg);
+}
+.block--ink .t-label {
+  opacity: 0.75;
+}
+.block--blue {
+  background: var(--er-blue);
+  color: var(--er-on-blue);
+}
+.block--blue .t-label {
+  color: var(--er-on-blue);
+  opacity: 0.8;
+}
+.block--surface {
+  background: var(--er-surface);
+}
+.facts {
+  display: grid;
+  gap: 18px;
+}
+.facts dd {
+  font: 700 clamp(20px, 2vw, 26px) / 1.15 var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* --- Formulaires ------------------------------------------------------------------------- */
+.field {
+  display: grid;
+  gap: 8px;
+}
+.field input {
+  width: 100%;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 2px solid currentColor;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: 500 16px / 1.3 var(--font-mono);
+}
+.field input::placeholder {
+  color: inherit;
+  opacity: 0.55;
+}
+.field input:focus-visible {
+  outline-offset: 6px;
+}
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px;
+  margin-top: 28px;
+}
+.form-row .field {
+  flex: 1 1 20rem;
+}
+.hint {
+  font: 400 15px / 1.6 var(--font-text);
+}
+.flash {
+  margin-top: 20px;
+  padding: 14px 18px;
+  background: var(--er-signal);
+  color: var(--er-on-signal);
+  font: 500 15px / 1.5 var(--font-mono);
+}
+
+/* --- Sections ---------------------------------------------------------------------------- */
+.section {
+  padding-block: clamp(48px, 7vw, 96px) 0;
+}
+.section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  margin-bottom: 24px;
+  border-bottom: 3px solid var(--er-ink);
+}
+.section__head .t-label {
+  white-space: nowrap;
+}
+
+/* Cartes de playlist : aplat surface, pochette au-dessus du grain. */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: var(--gutter);
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  background: var(--er-surface);
+}
+.card__cover {
+  aspect-ratio: 1;
+  width: 100%;
+  object-fit: cover;
+  background: var(--er-dot);
+}
+.card__title {
+  font: 900 22px / 1.05 var(--font-display);
+  letter-spacing: -0.03em;
+  color: var(--er-ink);
+  overflow-wrap: anywhere;
+}
+.card form {
+  margin-top: auto;
+}
+
+/* Règles numérotées (comme « Hiérarchie en cinq règles », charte p. 01). */
+.steps {
+  display: grid;
+  gap: 0;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  gap: 4px 12px;
+  padding-block: 16px;
+  border-bottom: 1.5px solid var(--er-rule);
+}
+.steps__n {
+  grid-row: span 2;
+  font: 900 40px / 0.9 var(--font-display);
+  color: var(--er-signal);
+}
+.steps strong {
+  font: 900 22px / 1.1 var(--font-display);
+  letter-spacing: -0.03em;
+  color: var(--er-ink);
+}
+.steps p {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.login {
+  display: grid;
+  gap: var(--gutter);
+}
+@media (min-width: 900px) {
+  .login--two {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.login--spaced {
+  margin-top: 28px;
+}
+.block__title {
+  margin-block: 10px 14px;
+}
+.block__action {
+  margin-top: 22px;
+}
+.login details {
+  margin-top: 18px;
+}
+.login summary {
+  cursor: pointer;
+  font: 500 15px / 1.4 var(--font-mono);
+  color: var(--er-ink);
+}
+.login ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+  margin-top: 10px;
+  font-size: 16px;
+}
+.login code {
+  font: 500 0.9em var(--font-mono);
+}
+
+/* --- Résultats --------------------------------------------------------------------------- */
+.figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 64px;
+}
+.figure {
+  display: grid;
+  gap: 12px;
+  min-width: 11rem;
+}
+.figure__n {
+  font: 900 clamp(64px, 9vw, 128px) / 0.82 var(--font-display);
+  letter-spacing: -0.05em;
+  color: var(--er-signal);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 28px;
+}
+.overview {
+  display: grid;
+  gap: 14px;
+}
+.overview div {
+  display: grid;
+  gap: 2px;
+}
+.overview dd {
+  font: 500 17px / 1.4 var(--font-text);
+}
+.rankings {
+  display: grid;
+  gap: 40px var(--gutter);
+}
+@media (min-width: 900px) {
+  .rankings {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.table-wrap {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 400 15px / 1.4 var(--font-text);
+}
+.table th {
+  padding: 8px 10px 8px 0;
+  border-bottom: 3px solid var(--er-ink);
+  font: 500 12px / 1.3 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--er-muted);
+  text-align: left;
+  white-space: nowrap;
+}
+.table td {
+  padding: 8px 10px 8px 0;
+  border-bottom: 1.5px solid var(--er-rule);
+  vertical-align: top;
+}
+.table .num {
+  font-family: var(--font-mono);
+  text-align: right;
+  white-space: nowrap;
+}
+.table .muted {
+  color: var(--er-muted);
+}
+.table--tracks td:first-child {
+  color: var(--er-ink);
+  font-weight: 500;
+}
+.bars {
+  display: grid;
+  gap: 10px;
+}
+.bar {
+  display: grid;
+  grid-template-columns: minmax(7rem, 14rem) 1fr 4.5rem;
+  align-items: center;
+  gap: 12px;
+  font: 500 14px / 1.2 var(--font-mono);
+}
+.bar__track {
+  height: 18px;
+}
+.bar__fill {
+  display: block;
+  height: 100%;
+  width: var(--w, 0%);
+  min-width: 2px;
+  background: var(--er-signal);
+}
+.bar__value {
+  text-align: right;
+}
+@media (max-width: 560px) {
+  .bar {
+    grid-template-columns: 1fr 3.5rem;
+  }
+  .bar__track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* --- Avancement -------------------------------------------------------------------------- */
+.progress {
+  display: grid;
+  gap: 16px;
+  max-width: 48rem;
+}
+.progress__n {
+  font: 900 clamp(64px, 12vw, 176px) / 0.84 var(--font-display);
+  letter-spacing: -0.06em;
+  color: var(--er-signal);
+}
+.progress__track {
+  height: 14px;
+  background: var(--er-surface);
+}
+.progress__fill {
+  display: block;
+  height: 100%;
+  width: var(--w, 0%);
+  background: var(--er-signal);
+  transition: width 0.4s ease;
+}
+
+/* --- Pied de page ------------------------------------------------------------------------ */
+.footer {
+  margin-top: clamp(64px, 8vw, 120px);
+  border-top: 2px solid var(--er-ink);
+}
+.footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 24px;
+  padding-block: 20px 28px;
+  font: 500 13px / 1.5 var(--font-mono);
+  color: var(--er-muted);
+}
+.footer__inner a {
+  color: inherit;
+}
+.handle {
+  color: var(--er-signal-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

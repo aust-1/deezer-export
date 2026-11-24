@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }}{% endblock %}
+{% block main %}
+<section class="hero dots marks" aria-labelledby="titre">
+  <div class="container hero__inner">
+    <p class="t-label">{{ label }}</p>
+    <h1 id="titre" class="t-display">{{ heading }}<span class="dot">.</span></h1>
+  </div>
+</section>
+<section class="container">
+  <div class="split">
+    <div class="split__main block block--ink">
+      <p class="t-hook">{{ message }}</p>
+      <p class="block__action"><a class="cta" href="/#exporter">Revenir à l'accueil →</a></p>
+    </div>
+  </div>
+</section>
+{% endblock %}

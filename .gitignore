@@ -219,3 +219,7 @@ __marimo__/
 
 # Output
 output/
+
+# Secrets (contrat du dépôt opt : seul .env.example est versionné)
+.env.*
+!.env.example
